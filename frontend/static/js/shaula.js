@@ -946,11 +946,39 @@ async function renderIntegrityView() {
     const content = document.getElementById('integrityContent');
     if (!content) return;
 
-    const brokenRows = data.broken_links.map(b => `
-      <div style="padding:8px 12px; background:rgba(239, 68, 68, 0.1); border-left:3px solid var(--status-red); margin-bottom:6px; border-radius:4px; font-size:13px;">
-        Em <strong>${b.source}</strong>: link apontando para <code>${b.line_hint}</code> (alvo inexistente).
+    const brokenRows = (data.broken_links || []).map((b, idx) => `
+      <div class="stat-card" style="padding:12px 14px; margin-bottom:10px; border-left:4px solid var(--status-red); background:rgba(239, 68, 68, 0.06);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div style="font-size:13.5px; font-weight:600; color:#fff; display:flex; align-items:center; gap:8px;">
+              <span>⚠️ Link Quebrado:</span>
+              <code style="color:var(--status-red); background:#18181c; border:1px solid rgba(239, 68, 68, 0.3); padding:2px 8px; border-radius:4px; font-size:13px;">${escapeHtml(b.line_hint || '[[' + b.target + ']]')}</code>
+            </div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">
+              Origem na nota: <a href="javascript:void(0)" class="wikilink" onclick="openNote('${escapeHtml(b.source)}')">📄 ${escapeHtml(b.source)}</a>
+            </div>
+          </div>
+          
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <button class="btn-primary" style="font-size:11px; padding:4px 10px;" onclick="resolveBrokenLinkPrompt('create_target', '${escapeHtml(b.source)}', '${escapeHtml(b.target)}')">
+              <span>➕</span> Criar Nota Alvo
+            </button>
+            <button class="btn-secondary" style="font-size:11px; padding:4px 10px;" onclick="resolveBrokenLinkPrompt('rename_link', '${escapeHtml(b.source)}', '${escapeHtml(b.target)}')">
+              <span>✏️</span> Corrigir Link
+            </button>
+            <button class="btn-secondary" style="font-size:11px; padding:4px 10px;" onclick="resolveBrokenLinkPrompt('unlink', '${escapeHtml(b.source)}', '${escapeHtml(b.target)}')">
+              <span>✂️</span> Desvincular
+            </button>
+            <button class="btn-secondary" style="font-size:11px; padding:4px 8px; color:var(--status-red);" onclick="resolveBrokenLinkPrompt('delete_link', '${escapeHtml(b.source)}', '${escapeHtml(b.target)}')">
+              <span>🗑️</span> Apagar
+            </button>
+            <button class="btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="openNote('${escapeHtml(b.source)}')">
+              <span>📄</span> Ver Nota
+            </button>
+          </div>
+        </div>
       </div>
-    `).join('') || '<div style="color:var(--status-green);">✓ Nenhum wikilink quebrado detectado! Conexões 100% íntegras.</div>';
+    `).join('') || '<div style="color:var(--status-green); padding:10px 0;">✓ Nenhum wikilink quebrado detectado! Conexões 100% íntegras.</div>';
 
     const orphanRows = data.orphan_notes.map(o => `
       <div style="padding:6px 12px; background:rgba(245, 158, 11, 0.1); border-left:3px solid var(--accent-gold); margin-bottom:6px; border-radius:4px; font-size:13px;">
@@ -1001,6 +1029,68 @@ async function createVaultBackup() {
     showToast(`Backup criado: ${data.filename} (${data.size_kb} KB)`, 'success');
   } catch (err) {
     showToast(err.message, 'error');
+  }
+}
+
+// --- RESOLUÇÃO INTERATIVA DE LINKS QUEBRADOS (SEGURANÇA E INTEGRIDADE) ---
+async function resolveBrokenLinkPrompt(action, source, target) {
+  let replacement = null;
+  let targetFolder = '03 - Knowledge/Ativos';
+
+  if (action === 'create_target') {
+    const folderChoice = prompt(
+      `Criar nota alvo para resolver "[[${target}]]"?\nInforme a pasta de destino:\n(Ex: 03 - Knowledge/Ativos, 03 - Knowledge/Procedimentos, 03 - Knowledge/Setores)`,
+      '03 - Knowledge/Ativos'
+    );
+    if (folderChoice === null) return;
+    targetFolder = folderChoice.trim() || '03 - Knowledge/Ativos';
+  } else if (action === 'rename_link') {
+    const newTarget = prompt(
+      `Digite o novo alvo do link para substituir "[[${target}]]" em "${source}":`,
+      target
+    );
+    if (!newTarget || !newTarget.trim()) return;
+    replacement = newTarget.trim();
+  } else if (action === 'unlink') {
+    if (!confirm(`Deseja desvincular o link "[[${target}]]" em "${source}"?\nO texto será mantido como "${target}" simples (sem colchetes), removendo a pendência de link.`)) {
+      return;
+    }
+  } else if (action === 'delete_link') {
+    if (!confirm(`Deseja APAGAR completamente a referência a "[[${target}]]" da nota "${source}"?`)) {
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch('/api/vault/resolve-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: action,
+        source: source,
+        target: target,
+        replacement: replacement,
+        target_folder: targetFolder
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Falha ao resolver pendência');
+    }
+    const data = await res.json();
+    showToast(data.message, 'success');
+
+    // Recarregar árvore do vault e tela de integridade
+    await loadVaultTree();
+    await renderIntegrityView();
+
+    if (action === 'create_target' && data.note_path) {
+      if (confirm(`Nota "${target}" criada com sucesso! Deseja abri-la agora no editor?`)) {
+        await openNote(data.note_path);
+      }
+    }
+  } catch (err) {
+    showToast(`Erro ao resolver link: ${err.message}`, 'error');
   }
 }
 
@@ -1423,7 +1513,7 @@ async function updateAdminPassword() {
 let hermesChatHistory = [
   {
     role: 'assistant',
-    text: 'Olá! Sou o **Agente Hermes**, seu assistente de inteligência integrado ao Shaula Dashboard. Posso analisar notas, cruzar seriais de hardware com o inventário dos Vaults ou gerar procedimentos técnicos. Como posso ajudar?'
+    text: 'Olá! Sou a **Operadora do Vault Shaula**, centro de comando operacional e guardiã do conhecimento. Estou ciente e conectada ao **Vault Principal** exclusivo (`./vault`) e ao **Vault Auxiliar** (`./aux_vault`).\n\nTelemetria e seriais do host sincronizados. Posso cruzar especificações de ativos, auditar links quebrados, sugerir categorização de documentos pela literatura PKM ou processar dados de hardware. Como posso atuar no ecossistema de Shaula agora?'
   }
 ];
 
@@ -1439,6 +1529,12 @@ async function openSmartNoteModal() {
   document.getElementById('smartNoteTitleInput').value = '';
   document.getElementById('smartNoteProcessStatus').style.display = 'none';
   document.getElementById('duplicateWarningBox').style.display = 'none';
+
+  const step1 = document.getElementById('smartNoteStep1');
+  const step2 = document.getElementById('smartNoteStep2');
+  if (step1) step1.style.display = 'block';
+  if (step2) step2.style.display = 'none';
+
   inp.focus();
 
   // Carregar atalhos de hardware detectados no host
@@ -1517,6 +1613,8 @@ function debounceCheckDuplicate() {
   }, 400);
 }
 
+let currentDraftNote = null;
+
 async function submitSmartNoteWorkflow(force = false) {
   const query = document.getElementById('smartNoteInput').value.trim();
   const title = document.getElementById('smartNoteTitleInput').value.trim();
@@ -1531,7 +1629,7 @@ async function submitSmartNoteWorkflow(force = false) {
   }
 
   statusBox.style.display = 'block';
-  statusBox.innerHTML = `⏳ <strong>Hermes processando:</strong> Cruzando informações no Vault e deduzindo setor, tag e especificações...`;
+  statusBox.innerHTML = `⏳ <strong>Operadora processando:</strong> Cruzando informações nos Vaults e construindo minuta para sua aprovação...`;
   btn.disabled = true;
 
   try {
@@ -1542,7 +1640,8 @@ async function submitSmartNoteWorkflow(force = false) {
         query: query,
         title: title || undefined,
         folder: folder,
-        force: force
+        force: force,
+        dry_run: true // Não grava diretamente; gera minuta para aprovação prévia do usuário!
       })
     });
 
@@ -1566,27 +1665,142 @@ async function submitSmartNoteWorkflow(force = false) {
       return;
     }
 
-    closeSmartNoteModal();
-    showToast(`Nota gerada com sucesso pelo Hermes: ${data.note_path}`, 'success');
+    // Salvar estado da minuta em aprovação
+    currentDraftNote = {
+      title: data.title,
+      category: data.category || 'Ativos e Equipamentos',
+      folder_used: data.folder_used || '03 - Knowledge/Ativos',
+      safe_filename: data.safe_filename,
+      rel_path: data.rel_path,
+      content: data.content,
+      original_query: query
+    };
 
-    // Recarregar árvore do vault e abrir a nota gerada no editor
-    await loadVaultTree();
-    await openNote(data.note_path);
+    // Preencher campos da tela de aprovação
+    document.getElementById('approvalTitleInput').value = data.title;
+    document.getElementById('approvalFolderInput').value = data.folder_used;
+    document.getElementById('approvalCategoryBadge').textContent = `🏷️ ${data.category}`;
+    document.getElementById('approvalDestPathLabel').textContent = data.rel_path;
+    document.getElementById('approvalRawEditor').value = data.content;
 
-    hermesChatHistory.push({
-      role: 'user',
-      text: `Criar nota inteligente para: "${query}"`
-    });
-    hermesChatHistory.push({
-      role: 'assistant',
-      text: `✅ Documento técnico gerado com sucesso em [[${data.note_path}]]! Setor, tag patrimonial e especificações foram catalogados.`
-    });
+    const previewPane = document.getElementById('approvalPreviewPane');
+    if (previewPane) {
+      previewPane.innerHTML = typeof marked !== 'undefined' ? marked.parse(data.content) : escapeHtml(data.content);
+    }
+
+    switchApprovalTab('preview');
+
+    // Transicionar para o Passo 2 (Aprovação)
+    document.getElementById('smartNoteStep1').style.display = 'none';
+    document.getElementById('smartNoteStep2').style.display = 'block';
+    statusBox.style.display = 'none';
 
   } catch (err) {
     statusBox.style.display = 'block';
     statusBox.innerHTML = `❌ <span style="color:var(--status-red);">${escapeHtml(err.message)}</span>`;
   } finally {
     btn.disabled = false;
+  }
+}
+
+function switchApprovalTab(tab) {
+  const btnPrev = document.getElementById('btnApprovalTabPreview');
+  const btnEdit = document.getElementById('btnApprovalTabEdit');
+  const panePrev = document.getElementById('approvalPreviewPane');
+  const paneEdit = document.getElementById('approvalRawEditor');
+
+  if (tab === 'preview') {
+    if (btnPrev) btnPrev.classList.add('active');
+    if (btnEdit) btnEdit.classList.remove('active');
+    if (panePrev) panePrev.style.display = 'block';
+    if (paneEdit) paneEdit.style.display = 'none';
+  } else {
+    if (btnEdit) btnEdit.classList.add('active');
+    if (btnPrev) btnPrev.classList.remove('active');
+    if (panePrev) panePrev.style.display = 'none';
+    if (paneEdit) {
+      paneEdit.style.display = 'block';
+      paneEdit.focus();
+    }
+  }
+}
+
+function renderApprovalMarkdownLive() {
+  if (!currentDraftNote) return;
+  const editor = document.getElementById('approvalRawEditor');
+  currentDraftNote.content = editor.value;
+  const previewPane = document.getElementById('approvalPreviewPane');
+  if (previewPane && typeof marked !== 'undefined') {
+    previewPane.innerHTML = marked.parse(editor.value);
+  }
+}
+
+function updateDraftFilename() {
+  if (!currentDraftNote) return;
+  const newTitle = document.getElementById('approvalTitleInput').value.trim();
+  const newFolder = document.getElementById('approvalFolderInput').value.trim();
+
+  currentDraftNote.title = newTitle;
+  currentDraftNote.folder_used = newFolder;
+
+  const cleanTitle = newTitle.replace(/[^a-zA-Z0-9_\- ]/g, '').trim().replace(/\s+/g, '_');
+  currentDraftNote.rel_path = `${newFolder.replace(/\/+$/, '')}/${cleanTitle || 'Nota'}.md`;
+
+  const label = document.getElementById('approvalDestPathLabel');
+  if (label) label.textContent = currentDraftNote.rel_path;
+}
+
+function backToSmartNoteInput() {
+  const step1 = document.getElementById('smartNoteStep1');
+  const step2 = document.getElementById('smartNoteStep2');
+  if (step1) step1.style.display = 'block';
+  if (step2) step2.style.display = 'none';
+}
+
+async function confirmAndSaveApprovedNote() {
+  if (!currentDraftNote) return;
+
+  const btn = document.getElementById('btnApproveAndSave');
+  if (btn) btn.disabled = true;
+
+  try {
+    const rawContent = document.getElementById('approvalRawEditor').value;
+    const destPath = currentDraftNote.rel_path;
+
+    const res = await fetch('/api/vault/note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: destPath,
+        content: rawContent
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Falha ao salvar nota aprovada no Vault');
+    }
+
+    closeSmartNoteModal();
+    showToast(`✓ Nota aprovada e gravada com sucesso: ${destPath}`, 'success');
+
+    // Recarregar árvore e abrir a nota aprovada no editor
+    await loadVaultTree();
+    await openNote(destPath);
+
+    hermesChatHistory.push({
+      role: 'user',
+      text: `Aprovar e gravar nota para: "${currentDraftNote.original_query}"`
+    });
+    hermesChatHistory.push({
+      role: 'assistant',
+      text: `✅ **Nota Aprovada e Gravada no Vault!**\n- **Documento:** [[${destPath}]]\n- **Categoria PKM:** \`${currentDraftNote.category}\`\n- **Pasta:** \`${currentDraftNote.folder_used}\`\nDocumento revisado pelo usuário e persistido no Vault Shaula.`
+    });
+
+  } catch (err) {
+    showToast(`Erro ao gravar nota: ${err.message}`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -1878,37 +2092,37 @@ async function renderHermesView() {
           <div style="font-size:28px;">🤖</div>
           <div>
             <h2 style="color:#fff; font-size:18px; font-weight:600; display:flex; align-items:center; gap:8px;">
-              Agente Hermes
+              Operadora do Vault Shaula (Agente Hermes)
               <span class="pill-badge" id="hermesBadge" style="font-size:10px; background:rgba(124, 58, 237, 0.2); color:var(--text-accent);">Conectando...</span>
             </h2>
             <p style="color:var(--text-muted); font-size:12px;">
-              Assistente de inteligência artificial integrado diretamente ao Shaula e aos Vaults.
+              Inteligência Artificial Operadora do Shaula com total domínio do <strong>Vault Principal</strong> (<code>./vault</code>) e do <strong>Vault Auxiliar</strong> (<code>./aux_vault</code>).
             </p>
           </div>
         </div>
         <div class="header-action-buttons" style="display:flex; gap:8px;">
           <button class="btn-primary" onclick="openSmartNoteModal()">
-            <span>⚡</span> Nota Inteligente (Hermes)
+            <span>⚡</span> Nota Inteligente
           </button>
           <button class="btn-secondary" onclick="clearHermesChat()">
-            🗑️ Limpar
+            🗑️ Limpar Conversa
           </button>
         </div>
       </div>
 
       <!-- Atalhos Rápidos de Ação -->
       <div style="display:flex; gap:8px; margin-bottom:14px; overflow-x:auto; padding-bottom:4px;">
+        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Qual é o status atual do Vault Principal e do Vault Auxiliar de Shaula? Quantas notas temos em cada um e como estão estruturadas?')">
+          📊 Status dos Vaults (Principal & Auxiliar)
+        </button>
+        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Audite a integridade dos Wikilinks e conexões do Vault Shaula e aponte pendências ou links quebrados.')">
+          🛡️ Auditar Wikilinks e Integridade
+        </button>
+        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Como você, Operadora do Vault, classifica novos ativos e máquinas nas categorias da literatura de Personal Knowledge Management (PKM)?')">
+          🏭 Categorização PKM de Ativos
+        </button>
         <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Resuma os principais tópicos da nota atualmente aberta no editor.')">
           📝 Resumir Nota Ativa
-        </button>
-        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="openSerialModal()">
-          🔍 Cruzar Serial de Hardware
-        </button>
-        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Analise a integridade do Vault e sugira 3 tópicos de documentação que poderiam enriquecer nossa base de conhecimento.')">
-          💡 Sugerir Novas Notas
-        </button>
-        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Gere um procedimento padrão operacional (POP) de manutenção para dispositivos de rede e armazenamento.')">
-          📋 Procedimento de Manutenção
         </button>
       </div>
 
@@ -1919,7 +2133,7 @@ async function renderHermesView() {
 
       <!-- Barra de Envio -->
       <div class="hermes-input-bar" style="display:flex; gap:10px; align-items:center;">
-        <input type="text" id="hermesPromptInput" placeholder="Pergunte ao Hermes, solicite análises de notas ou comandos para o Vault..." style="flex:1; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:#fff; font-size:13.5px; outline:none;" onkeydown="if(event.key === 'Enter') sendHermesMessage()">
+        <input type="text" id="hermesPromptInput" placeholder="Pergunte à Operadora sobre notas, máquinas, telemetria ou ações nos Vaults..." style="flex:1; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:#fff; font-size:13.5px; outline:none;" onkeydown="if(event.key === 'Enter') sendHermesMessage()">
         <button class="btn-primary" id="btnSendHermes" style="padding:12px 20px;" onclick="sendHermesMessage()">
           <span>Enviar</span> ➔
         </button>
@@ -2021,10 +2235,11 @@ function clearHermesChat() {
   hermesChatHistory = [
     {
       role: 'assistant',
-      text: 'Conversa limpa. Como posso auxiliar em suas tarefas no Vault Shaula hoje?'
+      text: 'Conversa reiniciada. Sou a **Operadora do Vault Shaula**, com total integração ao **Vault Principal** (`./vault`) e ao **Vault Auxiliar** (`./aux_vault`). Em que posso atuar nas operações do sistema agora?'
     }
   ];
   renderHermesChatHistory();
+  showToast('Conversa com a Operadora reiniciada.', 'info');
 }
 
 function insertTextIntoActiveEditor(msgIndex) {

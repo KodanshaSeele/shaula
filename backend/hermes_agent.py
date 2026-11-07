@@ -38,6 +38,7 @@ class HermesAgent:
         self.model = os.environ.get("HERMES_MODEL", "reflection/beam-1.0-501b-a23b:free")
         self.inference_base = os.environ.get("HERMES_API_BASE", "https://inference-api.nousresearch.com/v1")
         self.access_token = os.environ.get("HERMES_TOKEN", "")
+        self.nous_disabled = False
         self._load_credentials()
 
     def _load_credentials(self):
@@ -244,7 +245,7 @@ class HermesAgent:
         )
 
         # 1. Nous Research Inference API
-        if self.access_token:
+        if self.access_token and not self.nous_disabled:
             try:
                 headers = {
                     "Authorization": f"Bearer {self.access_token}",
@@ -257,52 +258,63 @@ class HermesAgent:
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.2,
-                    "max_tokens": 1500
+                    "max_tokens": 1200
                 }
-                r = requests.post(f"{self.inference_base}/chat/completions", headers=headers, json=payload, timeout=25)
+                r = requests.post(f"{self.inference_base}/chat/completions", headers=headers, json=payload, timeout=6)
                 if r.status_code == 200:
                     data = r.json()
                     choices = data.get("choices", [])
                     if choices:
                         return choices[0].get("message", {}).get("content", "").strip()
+                elif r.status_code in [401, 402, 403]:
+                    self.nous_disabled = True
             except Exception:
                 pass
 
-        # 2. Ollama local
-        try:
-            r = requests.post(
-                "http://127.0.0.1:11434/api/generate",
-                json={"model": "llama3.2:latest", "prompt": f"{sys_msg}\n\nUsuário: {prompt}", "stream": False},
-                timeout=20
-            )
-            if r.status_code == 200:
-                return r.json().get("response", "").strip()
-        except Exception:
-            pass
+        # 2. Ollama local (usando modelos reais instalados no host)
+        for ollama_model in ["qwen2.5:3b", "qwen2.5:1.5b", "gemma2:2b", "phi3:mini"]:
+            try:
+                r = requests.post(
+                    "http://127.0.0.1:11434/api/generate",
+                    json={
+                        "model": ollama_model,
+                        "prompt": f"{sys_msg}\n\nUsuário: {prompt}",
+                        "stream": False,
+                        "options": {"temperature": 0.2, "num_predict": 750}
+                    },
+                    timeout=20
+                )
+                if r.status_code == 200:
+                    resp = r.json().get("response", "").strip()
+                    if resp:
+                        return resp
+            except Exception:
+                continue
 
-        # 3. Fallback Heurístico Estruturado
-        return f"""
-# Ficha Técnica — Registro Operacional
+        # 3. Fallback Heurístico Estruturado da Operadora
+        return f"""### ☤ Operadora do Vault Shaula (Modo Operacional Local)
 
-## Dados Identificados
-- **Entrada:** {prompt[:200]}
-- **Status:** Registro gerado em modo offline com heurística determinística.
-- Para síntese avançada de linguagem natural, verifique a conexão com o Nous Portal em `data/hermes_auth.json`.
+- **Requisição:** `{prompt[:180]}...`
+- **Vault Principal (`{VAULT_PATH}`):** Conectado e supervisionado.
+- **Vault Auxiliar (`{settings_mgr.get_aux_path()}`):** Configurado para intercâmbio (senha 3884).
+- **Status:** Operações de categorização, integridade e criação de notas mantidas via motor determinístico.
 """
 
     def process_smart_note(
         self,
         input_text: str,
         title_override: Optional[str] = None,
-        dest_folder: str = "00 - Inbox",
-        force: bool = False
+        dest_folder: str = "auto",
+        force: bool = False,
+        dry_run: bool = False
     ) -> Dict[str, Any]:
         """
         Processamento Cognitivo Completo:
         1. Verificação anti-duplicação no Vault Shaula e Auxiliar
         2. Cruzamento com telemetria e hardware se aplicável
         3. Dedução de informações parciais (Setor, Nome Oficial, Tag Ativo Fixo, Especificações Técnicas)
-        4. Criação e abertura imediata do documento técnico formal em Markdown
+        4. Avaliação e categorização automática da pasta de destino com base na literatura PKM
+        5. Criação e abertura imediata do documento técnico formal em Markdown
         """
         clean_input = input_text.strip()
         if not clean_input:
@@ -328,7 +340,7 @@ class HermesAgent:
                 hw_match["serial"] = s_key
                 break
 
-        # 3. Montar prompt de dedução técnica para o Agente Hermes
+        # 3. Montar prompt de dedução técnica para a Operadora Hermes
         hw_context = f"\nDados de hardware local correspondente: {json.dumps(hw_match, ensure_ascii=False)}" if hw_match else ""
         known_vault_refs = [m["title"] for m in dup_check.get("matches", [])]
         vault_context = f"\nReferências de contexto encontradas nos Vaults: {known_vault_refs}" if known_vault_refs else ""
@@ -339,7 +351,7 @@ O usuário inseriu o seguinte dado ou descrição técnica (que pode ser parcial
 {hw_context}
 {vault_context}
 
-Como especialista técnico e engenheiro do Shaula Dashboard, processe essa informação:
+Como especialista técnico, engenheiro e OPERADORA DO VAULT SHAULA, processe essa informação com rigor:
 1. Deduza ou extraia:
    - **Nome Oficial e Padronizado do Ativo/Máquina/Equipamento**
    - **Setor / Linha / Localização Fabril ou Operacional** (ex: se for injetora1 da injeção plastica -> Setor: Injeção Plástica)
@@ -347,17 +359,38 @@ Como especialista técnico e engenheiro do Shaula Dashboard, processe essa infor
    - **Tag de Ativo Fixo / Patrimônio** (ex: AT-INJ-001 / PAT-2026-001)
    - **Fabricante e Modelo Provável ou de Referência no Mercado**
    - **Especificações Técnicas Essenciais** (dimensões, capacidades, potências, pressões, vazões, etc.)
-2. Elabore um documento técnico completo no padrão Obsidian Markdown contendo:
+2. Avalie e defina a PASTA DE DESTINO e CATEGORIA da nota seguindo os conceitos consolidados da literatura de Personal Knowledge Management (PARA, Johnny Decimal e taxonomia Obsidian):
+   - Para máquinas fabris, equipamentos industriais, componentes, TI e hardware:
+     categoria: "Ativos e Equipamentos"
+     pasta_destino: "03 - Knowledge/Ativos"
+   - Para procedimentos operacionais padrão (POP), instruções de trabalho (IT), manuais e normas:
+     categoria: "Procedimentos e Normas"
+     pasta_destino: "03 - Knowledge/Procedimentos"
+   - Para setores industriais, departamentos, linhas produtivas ou utilidades:
+     categoria: "Setores e Linhas"
+     pasta_destino: "03 - Knowledge/Setores"
+   - Para laudos, vistorias, diagnósticos, medições técnicas e auditorias:
+     categoria: "Diagnósticos e Auditorias"
+     pasta_destino: "01 - Verification"
+   - Para rotinas periódicas, cronogramas de manutenção preventiva e checklists:
+     categoria: "Tarefas e Agendamentos"
+     pasta_destino: "02 - Tasks & Schedules"
+   - Para anotações breves preliminares não categorizadas:
+     categoria: "Captura Rápida"
+     pasta_destino: "00 - Inbox"
+3. Elabore um documento técnico completo no padrão Obsidian Markdown contendo:
    - Frontmatter YAML com:
      title: "Nome Oficial Padronizado"
      date: "{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
      setor: "Nome do Setor"
      numero_maquina: "Código"
      ativo_fixo: "Tag Patrimonial"
+     categoria: "Nome da Categoria Escolhida"
+     pasta_destino: "Pasta Escolhida"
      tags: [ativo, setor, equipamento, manutencao]
      status: operacional
    - Título H1 formal
-   - Resumo Executivo da Identificação
+   - Resumo Executivo da Identificação e Localização
    - Tabela Markdown de Especificações Técnicas
    - Componentes Críticos e Cuidados Operacionais
    - Checklist de Inspeção Preventiva / Diária (com caixas de seleção `- [ ]`)
@@ -388,13 +421,50 @@ Como especialista técnico e engenheiro do Shaula Dashboard, processe essa infor
                 extracted_title = first_h1.group(1).strip() if first_h1 else clean_input.title()
 
         safe_filename = slugify(extracted_title) or f"Ativo_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        rel_filename = f"{dest_folder.rstrip('/')}/{safe_filename}.md"
+
+        # 4. Avaliar pasta de destino segundo a literatura ou escolha do usuário
+        chosen_folder = dest_folder.strip() if dest_folder else "auto"
+        detected_category = "Ativos e Equipamentos"
+
+        folder_match = re.search(r'pasta_destino:\s*["\']?([^"\']+)["\']?', generated_body)
+        cat_match = re.search(r'categoria:\s*["\']?([^"\']+)["\']?', generated_body)
+        if cat_match:
+            detected_category = cat_match.group(1).strip()
+
+        if chosen_folder.lower() in ["auto", "", "none", "auto-detectar"]:
+            if folder_match and folder_match.group(1).strip():
+                chosen_folder = folder_match.group(1).strip()
+            else:
+                # Classificação heurística complementar
+                inp_lower = (clean_input + " " + extracted_title).lower()
+                if any(w in inp_lower for w in ["pop", "procedimento", "norma", "manual", "instrucao", "guia"]):
+                    chosen_folder = "03 - Knowledge/Procedimentos"
+                    detected_category = "Procedimentos e Normas"
+                elif any(w in inp_lower for w in ["setor", "linha", "departamento", "galpao", "utilidades"]):
+                    chosen_folder = "03 - Knowledge/Setores"
+                    detected_category = "Setores e Linhas"
+                elif any(w in inp_lower for w in ["laudo", "inspecao", "teste", "diagnostico", "auditoria", "verificacao"]):
+                    chosen_folder = "01 - Verification"
+                    detected_category = "Diagnósticos e Auditorias"
+                elif any(w in inp_lower for w in ["cronograma", "rotina", "preventiva", "agendamento"]):
+                    chosen_folder = "02 - Tasks & Schedules"
+                    detected_category = "Tarefas e Agendamentos"
+                else:
+                    chosen_folder = "03 - Knowledge/Ativos"
+                    detected_category = "Ativos e Equipamentos"
+
+        # Garantir diretório de destino criado
+        target_dir = VAULT_PATH / chosen_folder
+        target_dir.mkdir(parents=True, exist_ok=True)
+        rel_filename = f"{chosen_folder.rstrip('/')}/{safe_filename}.md"
 
         # Se o modelo não gerou frontmatter, compor formalmente
         if not generated_body.startswith("---"):
             full_content = f"""---
 title: "{extracted_title}"
 date: "{now_str}"
+categoria: "{detected_category}"
+pasta_destino: "{chosen_folder}"
 tags:
   - ativo
   - equipamento
@@ -404,7 +474,7 @@ status: operacional
 
 # {extracted_title}
 
-> Gerado pelo **Agente Hermes** a partir de: `{clean_input}` | [[Shaula Home]]
+> Gerado pela **Operadora do Vault Shaula** a partir de: `{clean_input}` | [[Shaula Home]]
 
 ---
 
@@ -412,6 +482,20 @@ status: operacional
 """
         else:
             full_content = generated_body
+
+        # Se for modo de simulação / rascunho para aprovação prévia, retorna sem gravar
+        if dry_run:
+            return {
+                "success": True,
+                "duplicate_detected": False,
+                "title": extracted_title,
+                "category": detected_category,
+                "folder_used": chosen_folder,
+                "safe_filename": safe_filename,
+                "rel_path": rel_filename,
+                "content": full_content,
+                "hardware_match": hw_match
+            }
 
         # Salvar nota no Vault
         try:
@@ -424,9 +508,74 @@ status: operacional
             "duplicate_detected": False,
             "note_path": created_note["path"],
             "title": created_note["title"],
+            "category": detected_category,
+            "folder_used": chosen_folder,
             "hardware_match": hw_match,
             "created_note": created_note
         }
+
+    def operator_chat(self, user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+        """
+        Interação de Chat com a Operadora Oficial do Vault Shaula.
+        A IA mantém plena consciência do Vault Principal, do Vault Auxiliar,
+        da telemetria em tempo real e de seu papel como guardiã determinística do ecossistema.
+        """
+        self._load_credentials()
+
+        # Coletar estatísticas reais do Vault Principal
+        vault_files = [f for f in VAULT_PATH.rglob("*.md") if ".backups" not in f.parts]
+        vault_notes_count = len(vault_files)
+
+        # Coletar estatísticas reais do Vault Auxiliar
+        aux_path = settings_mgr.get_aux_path()
+        aux_notes_count = 0
+        aux_status = "Desativado ou Inexistente"
+        if aux_path.exists():
+            aux_files = [f for f in aux_path.rglob("*.md") if not f.name.startswith(".")]
+            aux_notes_count = len(aux_files)
+            aux_status = f"Ativo em '{aux_path}' ({aux_notes_count} notas)"
+
+        # Coletar telemetria do Host
+        try:
+            cpu_pct = psutil.cpu_percent(interval=None)
+            mem = psutil.virtual_memory()
+            mem_used_gb = round(mem.used / (1024**3), 1)
+            mem_total_gb = round(mem.total / (1024**3), 1)
+            disk = psutil.disk_usage("/")
+            disk_pct = disk.percent
+        except Exception:
+            cpu_pct = 0
+            mem_used_gb = 0
+            mem_total_gb = 0
+            disk_pct = 0
+
+        serials_count = len(self.collect_host_serials())
+
+        system_prompt = f"""Você é a OPERADORA DE INTELIGÊNCIA ARTIFICIAL DO VAULT SHAULA — o Centro de Comando e Gestão de Conhecimento, Ativos e Telemetria batizado em homenagem à estrela λ Scorpii (Shaula, o ferrão do Escorpião).
+
+CONSCIÊNCIA SISTÊMICA OBRIGATÓRIA:
+1. SEU PAPEL: Você é a operadora do sistema. Sua linguagem é profissional, técnica, assertiva, precisa e livre de clichês ou perfumarias. Você tem controle e supervisão ativa de documentações técnicas, fichas de máquinas/ativos, tarefas recorrentes e auditorias de integridade.
+2. VAULT PRINCIPAL EXCLUSIVO:
+   - Caminho: `{VAULT_PATH}`
+   - Total de Notas: {vault_notes_count} documentos
+   - Estrutura de Diretórios Categóricos: [00 - Inbox, 01 - Verification, 02 - Tasks & Schedules, 03 - Knowledge (Ativos, Procedimentos, Setores), 04 - System]
+   - Este vault é exclusivo do Shaula e sincronizável via Git.
+3. VAULT AUXILIAR (INTEROPERABILIDADE):
+   - Caminho Configurado: `{aux_path}`
+   - Estado: {aux_status}
+   - Notas Disponíveis: {aux_notes_count}
+   - Função: Importação e exportação de bases de notas legadas/externas. O controle de sincronização é restrito e protegido por senha administrativa de segurança (3884).
+4. TELEMETRIA DO HOST E HARDWARE:
+   - CPU: {cpu_pct}% | RAM: {mem_used_gb} GB usados de {mem_total_gb} GB | Disco Root: {disk_pct}%
+   - Dispositivos de hardware/seriais indexados no host: {serials_count} identificadores.
+
+INSTRUÇÕES DE RESPOSTA:
+- Responda sempre em Português.
+- Use formatação Markdown rica e inclua [[Wikilinks]] sempre que mencionar notas existentes, ativos ou conceitos técnicos do Vault.
+- Se o usuário perguntar sobre o sistema, notas, equipamentos ou arquitetura, demonstre total domínio do Vault Principal e do Vault Auxiliar.
+- Ao sugerir criação de notas, oriente sobre a categorização correta baseada na literatura técnica de Personal Knowledge Management (PKM)."""
+
+        return self.ask(user_message, system_prompt=system_prompt)
 
 
 hermes_agent = HermesAgent()

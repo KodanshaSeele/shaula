@@ -370,6 +370,132 @@ Digite suas notas aqui...
             "status": "HEALTHY" if len(broken_links) == 0 else "WARNING"
         }
 
+    def resolve_broken_link(
+        self,
+        action: str,
+        source: str,
+        target: str,
+        replacement: Optional[str] = None,
+        target_folder: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Resolve pendências de links quebrados (segurança/integridade do Vault).
+        - create_target: Cria a nota alvo ausente no Vault (na pasta especificada ou 03 - Knowledge)
+        - rename_link: Substitui a referência quebrada por outro link válido na nota de origem
+        - unlink: Remove a marcação [[...]] mantendo apenas o texto limpo
+        - delete_link: Apaga a menção/link por completo na nota de origem
+        """
+        source_clean = source.strip().lstrip("/")
+        source_path = (self.vault_path / source_clean).resolve()
+        vault_root = self.vault_path.resolve()
+
+        if not source_path.is_relative_to(vault_root) or not source_path.exists() or not source_path.is_file():
+            raise FileNotFoundError(f"A nota de origem '{source}' não foi encontrada no Vault.")
+
+        target_clean = target.removesuffix(".md").strip()
+        if not target_clean:
+            raise ValueError("O alvo do link não pode ser vazio.")
+
+        # 1. CRIAR NOTA ALVO (Transmuta link quebrado em documento ativo)
+        if action == "create_target":
+            folder = (target_folder or "03 - Knowledge").strip("/")
+            folder_dir = (self.vault_path / folder).resolve()
+            folder_dir.mkdir(parents=True, exist_ok=True)
+
+            dest_file = folder_dir / f"{target_clean}.md"
+            if dest_file.exists():
+                return {
+                    "success": True,
+                    "action": "create_target",
+                    "note_path": str(dest_file.relative_to(self.vault_path)),
+                    "message": f"A nota '{dest_file.name}' já existia. Link revalidado com sucesso."
+                }
+
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            source_stem = Path(source_clean).stem
+            content = f"""---
+title: "{target_clean}"
+date: "{now_str}"
+tags:
+  - knowledge
+  - link_resolvido
+status: ativo
+---
+
+# {target_clean}
+
+> Nota gerada pela **Operadora do Vault Shaula** para resolver link quebrado originado em [[{source_stem}]].
+
+## Descrição do Ativo / Registro
+Ficha técnica criada no Vault de Shaula. Edite esta documentação com as especificações necessárias.
+
+- **Origem da Referência:** [[{source_stem}]]
+- **Data de Resolução:** {now_str}
+"""
+            dest_file.write_text(content, encoding="utf-8")
+            return {
+                "success": True,
+                "action": "create_target",
+                "note_path": str(dest_file.relative_to(self.vault_path)),
+                "message": f"Nota alvo '{target_clean}' criada com sucesso em '{folder}/'!"
+            }
+
+        # 2. Ações que editam a nota de origem (rename_link, unlink, delete_link)
+        orig_content = source_path.read_text(encoding="utf-8", errors="replace")
+        target_esc = re.escape(target_clean)
+
+        # Expressão regular com suporte a aliases ([[alvo|alias]]) e cabeçalhos ([[alvo#secao]])
+        pattern = re.compile(rf"\[\[{target_esc}(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]", re.IGNORECASE)
+
+        if not pattern.search(orig_content):
+            # Tentar correspondência com a string exata original de target
+            pattern = re.compile(rf"\[\[{re.escape(target)}(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]", re.IGNORECASE)
+            if not pattern.search(orig_content):
+                raise ValueError(f"O link '[[{target}]]' não foi localizado no texto de '{source}'.")
+
+        if action == "rename_link":
+            if not replacement or not replacement.strip():
+                raise ValueError("O novo destino do link é obrigatório para renomear.")
+            new_target = replacement.strip().removeprefix("[[").removesuffix("]]").removesuffix(".md").strip()
+
+            def repl_rename(m):
+                alias = m.group(1)
+                return f"[[{new_target}|{alias}]]" if alias else f"[[{new_target}]]"
+
+            new_content = pattern.sub(repl_rename, orig_content)
+            source_path.write_text(new_content, encoding="utf-8")
+            return {
+                "success": True,
+                "action": "rename_link",
+                "message": f"Link atualizado para '[[{new_target}]]' na nota '{source}'."
+            }
+
+        elif action == "unlink":
+            def repl_unlink(m):
+                alias = m.group(1)
+                return alias if alias else target_clean
+
+            new_content = pattern.sub(repl_unlink, orig_content)
+            source_path.write_text(new_content, encoding="utf-8")
+            return {
+                "success": True,
+                "action": "unlink",
+                "message": f"Wikilink desvinculado (convertido para texto '{target_clean}') na nota '{source}'."
+            }
+
+        elif action == "delete_link":
+            new_content = pattern.sub("", orig_content)
+            new_content = re.sub(r"[ \t]+", " ", new_content)
+            source_path.write_text(new_content, encoding="utf-8")
+            return {
+                "success": True,
+                "action": "delete_link",
+                "message": f"Referência '[[{target}]]' apagada com sucesso da nota '{source}'."
+            }
+
+        else:
+            raise ValueError(f"Ação inválida '{action}'. Ações válidas: create_target, rename_link, unlink, delete_link.")
+
     def backup_vault(self) -> Dict[str, Any]:
         """Cria um snapshot .tar.gz do vault na pasta .backups/"""
         BACKUPS_DIR.mkdir(parents=True, exist_ok=True)

@@ -116,19 +116,29 @@ class AuxSyncRequest(BaseModel):
 class HermesChatRequest(BaseModel):
     message: str
     context: Optional[str] = None
+    history: Optional[List[Dict[str, str]]] = None
 
 
 class HermesSerialRequest(BaseModel):
     serial: str
     title: Optional[str] = None
-    folder: str = "00 - Inbox"
+    folder: str = "auto"
 
 
 class SmartNoteRequest(BaseModel):
     query: str
     title: Optional[str] = None
-    folder: str = "00 - Inbox"
+    folder: str = "auto"
     force: bool = False
+    dry_run: bool = False
+
+
+class ResolveBrokenLinkRequest(BaseModel):
+    action: str  # 'create_target', 'rename_link', 'unlink', 'delete_link'
+    source: str
+    target: str
+    replacement: Optional[str] = None
+    target_folder: Optional[str] = "03 - Knowledge"
 
 
 class DuplicateCheckRequest(BaseModel):
@@ -361,10 +371,25 @@ async def get_hermes_hardware_serials():
 @app.post("/api/hermes/chat")
 async def chat_with_hermes(payload: HermesChatRequest):
     try:
-        reply = hermes_agent.ask(payload.message)
+        reply = hermes_agent.operator_chat(payload.message, payload.history)
         return {"success": True, "reply": reply}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/vault/resolve-link")
+async def resolve_broken_link_endpoint(payload: ResolveBrokenLinkRequest):
+    try:
+        result = vault_mgr.resolve_broken_link(
+            action=payload.action,
+            source=payload.source,
+            target=payload.target,
+            replacement=payload.replacement,
+            target_folder=payload.target_folder
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/hermes/serial-process")
@@ -396,7 +421,8 @@ async def process_smart_note_endpoint(payload: SmartNoteRequest):
             input_text=payload.query,
             title_override=payload.title,
             dest_folder=payload.folder,
-            force=payload.force
+            force=payload.force,
+            dry_run=payload.dry_run
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -197,74 +197,136 @@
 
   <!-- Modal: Ingestão Inteligente de Ativos & Notas pelo Agente Hermes -->
   <div class="modal-overlay" id="smartNoteModal" style="display:none;" onclick="if(event.target === this) closeSmartNoteModal()">
-    <div class="modal-box" style="width: 620px;">
+    <div class="modal-box" style="width: 740px; max-width: 95vw;">
       <div class="modal-header">
         <span style="font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px;">
-          <span>⚡</span> Ingestão Inteligente com IA (Agente Hermes)
+          <span>⚡</span> Ingestão Inteligente de Notas (Agente Hermes)
         </span>
         <button class="icon-btn" onclick="closeSmartNoteModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <p style="color:var(--text-muted); font-size:12px; margin-bottom:14px;">
-          Insira um dado parcial, nome de máquina ou serial (ex: <code>injetora1 da injeção plastica</code> ou <code>50026B76871E8D22</code>). O Agente Hermes cruzará os Vaults para <strong>impedir duplicatas</strong>, deduzirá setor, tag patrimonial, número e especificações técnicas, gerando a ficha completa.
-        </p>
 
-        <div style="margin-bottom: 14px;">
-          <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">
-            Identificação / Descrição Parcial da Máquina ou Ativo
-          </label>
-          <input type="text" id="smartNoteInput" placeholder="Ex: injetora1 da injeção plastica, compressor parafuso linha B, 50026B76871E8D22..." style="width:100%; padding:10px 14px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:13.5px; outline:none;" oninput="debounceCheckDuplicate()" onkeydown="if(event.key === 'Enter') submitSmartNoteWorkflow(false)">
+      <!-- PASSO 1: ENTRADA E CRUZAMENTO DE DADOS -->
+      <div id="smartNoteStep1">
+        <div class="modal-body">
+          <p style="color:var(--text-muted); font-size:12px; margin-bottom:14px;">
+            Insira um dado parcial, nome de máquina ou serial (ex: <code>injetora1 da injeção plastica</code> ou <code>50026B76871E8D22</code>). A Operadora cruzará os Vaults para <strong>impedir duplicatas</strong>, deduzirá setor, ativo fixo e gerará a minuta para sua aprovação.
+          </p>
+
+          <div style="margin-bottom: 14px;">
+            <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">
+              Identificação / Descrição Parcial da Máquina ou Ativo
+            </label>
+            <input type="text" id="smartNoteInput" placeholder="Ex: injetora1 da injeção plastica, compressor parafuso linha B, 50026B76871E8D22..." style="width:100%; padding:10px 14px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:13.5px; outline:none;" oninput="debounceCheckDuplicate()" onkeydown="if(event.key === 'Enter') submitSmartNoteWorkflow(false)">
+          </div>
+
+          <!-- Alerta de Anti-Duplicação -->
+          <div id="duplicateWarningBox" style="display:none; padding:12px 14px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-left:4px solid var(--accent-gold); border-radius:6px; margin-bottom:14px;">
+            <div style="font-size:12.5px; font-weight:600; color:var(--accent-gold); display:flex; align-items:center; gap:6px;">
+              <span>⚠️</span> Possível Duplicidade Detectada no Vault
+            </div>
+            <div id="duplicateNoteInfo" style="font-size:12px; color:#e2e8f0; margin-top:4px;"></div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button type="button" class="btn-secondary" id="btnOpenExistingNote" style="font-size:11px; padding:3px 8px;">
+                📄 Abrir Nota Existente
+              </button>
+              <button type="button" class="btn-secondary" style="font-size:11px; padding:3px 8px; color:var(--accent-gold);" onclick="submitSmartNoteWorkflow(true)">
+                ➕ Criar Mesmo Assim (Forçar)
+              </button>
+            </div>
+          </div>
+
+          <!-- Seriais / Hardware detectados no host para atalho rápido -->
+          <div style="margin-bottom: 14px;" id="hostSerialsSection">
+            <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">Atalhos de Hardware Detectados no Host</label>
+            <div id="hostSerialsPills" style="display:flex; flex-wrap:wrap; gap:6px; max-height:80px; overflow-y:auto; padding:4px 0;">
+              <span style="font-size:11px; color:var(--text-muted);">Consultando hardware...</span>
+            </div>
+          </div>
+
+          <div class="modal-form-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 14px;">
+            <div>
+              <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Título Opcional</label>
+              <input type="text" id="smartNoteTitleInput" placeholder="Deixe em branco para auto-dedução" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12px; outline:none;">
+            </div>
+            <div>
+              <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Pasta de Destino (Literatura PKM)</label>
+              <select id="smartNoteFolderSelect" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12px; outline:none;">
+                <option value="auto" selected>🤖 Auto-detectar pela IA (Literatura PKM / Por Categoria)</option>
+                <option value="03 - Knowledge/Ativos">03 - Knowledge/Ativos (Máquinas e Equipamentos)</option>
+                <option value="03 - Knowledge/Procedimentos">03 - Knowledge/Procedimentos (POP e Normas)</option>
+                <option value="03 - Knowledge/Setores">03 - Knowledge/Setores (Linhas e Departamentos)</option>
+                <option value="01 - Verification">01 - Verification (Diagnósticos e Auditorias)</option>
+                <option value="02 - Tasks & Schedules">02 - Tasks & Schedules (Rotinas e Agendamentos)</option>
+                <option value="00 - Inbox">00 - Inbox (Captura Rápida Preliminar)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="smartNoteProcessStatus" style="display:none; padding:10px 14px; background:rgba(124, 58, 237, 0.1); border-left:3px solid var(--accent-purple); border-radius:4px; font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
+            ⏳ <strong>Operadora processando:</strong> Cruzando dados no Vault para gerar minuta para sua aprovação...
+          </div>
         </div>
 
-        <!-- Alerta de Anti-Duplicação -->
-        <div id="duplicateWarningBox" style="display:none; padding:12px 14px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-left:4px solid var(--accent-gold); border-radius:6px; margin-bottom:14px;">
-          <div style="font-size:12.5px; font-weight:600; color:var(--accent-gold); display:flex; align-items:center; gap:6px;">
-            <span>⚠️</span> Possível Duplicidade Detectada no Vault
-          </div>
-          <div id="duplicateNoteInfo" style="font-size:12px; color:#e2e8f0; margin-top:4px;"></div>
-          <div style="display:flex; gap:8px; margin-top:8px;">
-            <button type="button" class="btn-secondary" id="btnOpenExistingNote" style="font-size:11px; padding:3px 8px;">
-              📄 Abrir Nota Existente
-            </button>
-            <button type="button" class="btn-secondary" style="font-size:11px; padding:3px 8px; color:var(--accent-gold);" onclick="submitSmartNoteWorkflow(true)">
-              ➕ Criar Mesmo Assim (Forçar)
-            </button>
-          </div>
-        </div>
-
-        <!-- Seriais / Hardware detectados no host para atalho rápido -->
-        <div style="margin-bottom: 14px;" id="hostSerialsSection">
-          <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">Atalhos de Hardware Detectados no Host</label>
-          <div id="hostSerialsPills" style="display:flex; flex-wrap:wrap; gap:6px; max-height:80px; overflow-y:auto; padding:4px 0;">
-            <span style="font-size:11px; color:var(--text-muted);">Consultando hardware...</span>
-          </div>
-        </div>
-
-        <div class="modal-form-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 14px;">
-          <div>
-            <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Título Opcional</label>
-            <input type="text" id="smartNoteTitleInput" placeholder="Deixe em branco para auto-dedução" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12px; outline:none;">
-          </div>
-          <div>
-            <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Pasta de Destino</label>
-            <select id="smartNoteFolderSelect" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12px; outline:none;">
-              <option value="00 - Inbox">00 - Inbox (Captura rápida)</option>
-              <option value="03 - Knowledge">03 - Knowledge (Base de ativos)</option>
-              <option value="01 - Verification">01 - Verification (Diagnósticos)</option>
-            </select>
-          </div>
-        </div>
-
-        <div id="smartNoteProcessStatus" style="display:none; padding:10px 14px; background:rgba(124, 58, 237, 0.1); border-left:3px solid var(--accent-purple); border-radius:4px; font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
-          ⏳ <strong>Hermes cruzando dados:</strong> Consultando setor, modelo e histórico para gerar ficha técnica...
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="closeSmartNoteModal()">Cancelar</button>
+          <button class="btn-primary" id="btnSubmitSmartNote" onclick="submitSmartNoteWorkflow(false)">
+            <span>🚀</span> Cruzar Dados e Gerar Minuta
+          </button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeSmartNoteModal()">Cancelar</button>
-        <button class="btn-primary" id="btnSubmitSmartNote" onclick="submitSmartNoteWorkflow(false)">
-          <span>🚀</span> Cruzar Dados e Gerar Nota
-        </button>
+
+      <!-- PASSO 2: APROVAÇÃO E REVISÃO ANTES DE GRAVAR A NOTA -->
+      <div id="smartNoteStep2" style="display:none;">
+        <div class="modal-body" style="padding-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+            <div style="font-size:13px; font-weight:600; color:var(--accent-gold); display:flex; align-items:center; gap:6px;">
+              <span>📋</span> Revise e aprove a nota antes de gravar no Vault
+            </div>
+            <div class="view-toggle">
+              <button type="button" class="toggle-btn active" id="btnApprovalTabPreview" onclick="switchApprovalTab('preview')">Visualização</button>
+              <button type="button" class="toggle-btn" id="btnApprovalTabEdit" onclick="switchApprovalTab('edit')">Editar Conteúdo</button>
+            </div>
+          </div>
+
+          <!-- Campos de Governança Editáveis na Aprovação -->
+          <div class="modal-form-grid" style="display:grid; grid-template-columns: 2fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">
+                Título da Nota
+              </label>
+              <input type="text" id="approvalTitleInput" style="width:100%; padding:7px 10px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12.5px; outline:none;" oninput="updateDraftFilename()">
+            </div>
+            <div>
+              <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">
+                Pasta de Destino
+              </label>
+              <input type="text" id="approvalFolderInput" style="width:100%; padding:7px 10px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12.5px; outline:none;" oninput="updateDraftFilename()">
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px; font-size:11px; color:var(--text-muted); margin-bottom:10px;">
+            <span>Destino final:</span>
+            <code id="approvalDestPathLabel" style="color:var(--text-accent); font-family:var(--font-mono); font-size:11.5px;"></code>
+            <span class="pill-badge" id="approvalCategoryBadge" style="font-size:10px; margin-left:auto;"></span>
+          </div>
+
+          <!-- Painel de Pré-visualização Formatada -->
+          <div id="approvalPreviewPane" class="markdown-body" style="max-height: 290px; min-height: 180px; overflow-y: auto; background: var(--bg-primary); padding: 14px 18px; border-radius: 6px; border: 1px solid var(--border-color); user-select: text;">
+          </div>
+
+          <!-- Painel de Edição Raw Markdown -->
+          <textarea id="approvalRawEditor" style="display:none; width:100%; height:290px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-family:var(--font-mono); font-size:12.5px; padding:12px; outline:none; resize:none; line-height:1.5;" oninput="renderApprovalMarkdownLive()"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="backToSmartNoteInput()">↩️ Voltar e Alterar</button>
+          <button class="btn-secondary" onclick="closeSmartNoteModal()">✕ Descartar</button>
+          <button class="btn-primary" id="btnApproveAndSave" onclick="confirmAndSaveApprovedNote()">
+            <span>✓</span> Aprovar e Gravar Nota no Vault
+          </button>
+        </div>
       </div>
+
     </div>
   </div>
 
