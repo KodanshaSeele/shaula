@@ -2,7 +2,10 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#121212">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>🦂 Shaula — Centro de Comando & Vault</title>
   <link rel="stylesheet" href="/static/css/obsidian.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>🦂</text></svg>">
@@ -11,32 +14,36 @@
 
   <!-- Barra Superior / Titlebar -->
   <header class="app-titlebar">
-    <div class="titlebar-brand">
+    <button class="mobile-nav-toggle" id="mobileMenuBtn" onclick="toggleMobileSidebar()" title="Navegação do Vault">☰</button>
+
+    <div class="titlebar-brand" onclick="switchView('vault')" title="Shaula Dashboard">
       <span class="brand-icon">🦂</span>
-      <span>SHAULA</span>
+      <span class="brand-name">SHAULA</span>
       <span class="brand-sub">λ Scorpii · Command Dashboard</span>
     </div>
 
-    <div class="titlebar-search-trigger" onclick="openSearchModal()">
+    <div class="titlebar-search-trigger" onclick="openSearchModal()" title="Buscar notas (Ctrl+O)">
       <span>🔍</span>
-      <span>Buscar no Vault exclusivo...</span>
+      <span class="search-text">Buscar no Vault...</span>
       <span class="search-badge">Ctrl+O</span>
     </div>
 
-    <button class="btn-primary" style="padding: 4px 12px; font-size: 11px; margin-left: 10px;" onclick="openSmartNoteModal()" title="Inserir dado parcial, cruzar dados e gerar nota com Hermes">
-      <span>⚡</span> Nova Nota Inteligente (Hermes)
+    <button class="btn-primary titlebar-action-btn" onclick="openSmartNoteModal()" title="Nova Nota Inteligente com Agente Hermes">
+      <span>⚡</span>
+      <span class="btn-text">Nota Inteligente</span>
     </button>
-    <button class="btn-secondary" style="padding: 4px 12px; font-size: 11px; margin-left: 6px;" onclick="switchView('images')" title="Inserir até 20 imagens com descrição única ou individual">
-      <span>🖼️</span> Inserir Imagens
+    <button class="btn-secondary titlebar-action-btn" onclick="switchView('images')" title="Inserir até 20 imagens">
+      <span>🖼️</span>
+      <span class="btn-text">Imagens</span>
     </button>
 
     <div class="titlebar-stats">
       <span class="pill-badge" id="hostStatusPill">
         <span class="dot dot-green"></span>
-        <span>Conectando telemetria...</span>
+        <span class="status-pill-text">Online</span>
       </span>
-      <span class="pill-badge" id="vaultNotesCount">
-        0 notas no vault
+      <span class="pill-badge pill-vault-count" id="vaultNotesCount">
+        0 notas
       </span>
     </div>
   </header>
@@ -51,7 +58,7 @@
       <button class="activity-btn" data-view="verification" title="Diagnóstico & Verificação">🩺</button>
       <button class="activity-btn" data-view="scheduler" title="Motor de Agendamento">⏱️</button>
       <button class="activity-btn" data-view="integrity" title="Integridade do Vault & Backups">🛡️</button>
-      <div style="margin-top:auto;"></div>
+      <div class="activity-spacer" style="margin-top:auto;"></div>
       <button class="activity-btn" data-view="settings" title="Configurações & Vault Auxiliar (Senha: 3884)">⚙️</button>
     </nav>
 
@@ -63,12 +70,16 @@
           <button class="icon-btn" onclick="promptNewNote()" title="Nova Nota">➕</button>
           <button class="icon-btn" onclick="promptNewFolder()" title="Nova Pasta">📁</button>
           <button class="icon-btn" onclick="loadVaultTree()" title="Atualizar">🔄</button>
+          <button class="icon-btn mobile-close-btn" onclick="toggleMobileSidebar(false)" title="Fechar Painel">✕</button>
         </div>
       </div>
       <div class="vault-tree" id="vaultTree">
         <!-- Árvore injetada via JS -->
       </div>
     </aside>
+
+    <!-- Backdrop para fechar o sidebar off-canvas no mobile -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleMobileSidebar(false)"></div>
 
     <!-- Editor Workspace (Visualização Padrão) -->
     <section class="editor-workspace" id="editorWorkspace">
@@ -229,7 +240,7 @@
           </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 14px;">
+        <div class="modal-form-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 14px;">
           <div>
             <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Título Opcional</label>
             <input type="text" id="smartNoteTitleInput" placeholder="Deixe em branco para auto-dedução" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12px; outline:none;">

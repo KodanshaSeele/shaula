@@ -80,6 +80,33 @@ body {
   font-size: 13px;
 }
 
+.mobile-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.mobile-nav-toggle:hover {
+  background: var(--bg-hover);
+}
+
+.mobile-close-btn {
+  display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
 .titlebar-brand {
   display: flex;
   align-items: center;
@@ -701,4 +728,342 @@ body {
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (PC & SMARTPHONE / MOBILE)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  body {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* Titlebar */
+  .app-titlebar {
+    height: 48px;
+    padding: 0 8px;
+    gap: 6px;
+  }
+
+  .mobile-nav-toggle {
+    display: flex;
+  }
+
+  .titlebar-brand {
+    cursor: pointer;
+    gap: 4px;
+    font-size: 13px;
+  }
+  .brand-sub {
+    display: none;
+  }
+
+  .titlebar-search-trigger {
+    width: auto;
+    padding: 6px 10px;
+    font-size: 11px;
+    flex-shrink: 1;
+    min-width: 36px;
+  }
+  .search-badge {
+    display: none;
+  }
+  .search-text {
+    display: none;
+  }
+
+  .titlebar-action-btn {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+    margin-left: 2px !important;
+    flex-shrink: 0;
+  }
+
+  .titlebar-stats {
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  /* Activity Bar (Switches to Bottom Tab Bar) */
+  .activity-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 52px;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background-color: var(--bg-tertiary);
+    border-top: 1px solid var(--border-color);
+    border-right: none;
+    z-index: 1000;
+    box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .activity-spacer {
+    display: none !important;
+  }
+
+  .activity-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    border-radius: 8px;
+  }
+
+  .activity-btn.active::before {
+    top: 0;
+    left: 8px;
+    right: 8px;
+    bottom: auto;
+    width: auto;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+  }
+
+  /* Hide Desktop Statusbar on Mobile */
+  .app-statusbar {
+    display: none !important;
+  }
+
+  /* Main Workspace Area */
+  .app-workspace {
+    margin-bottom: 52px;
+    height: calc(100dvh - 48px - 52px);
+    overflow: hidden;
+  }
+
+  /* Side Panel as Sliding Drawer */
+  .side-panel {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    bottom: 52px;
+    width: 290px;
+    max-width: 85vw;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    z-index: 950;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+    display: flex !important;
+  }
+
+  .side-panel.mobile-open {
+    transform: translateX(0);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.8);
+  }
+
+  .mobile-close-btn {
+    display: flex;
+  }
+
+  /* Backdrop for Side Panel Drawer */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 48px;
+    left: 0;
+    right: 0;
+    bottom: 52px;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(2px);
+    z-index: 920;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .sidebar-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Editor Toolbar & Panes */
+  .editor-toolbar {
+    height: auto;
+    min-height: 44px;
+    padding: 6px 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .note-meta-title {
+    font-size: 13px;
+    max-width: 130px;
+  }
+  .note-path-tag {
+    display: none;
+  }
+
+  .editor-controls {
+    margin-left: auto;
+    gap: 6px;
+  }
+
+  /* Hide Split Mode Button on Smartphones */
+  .toggle-btn[data-mode="split"] {
+    display: none !important;
+  }
+
+  .pane-container {
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .editor-pane, .preview-pane {
+    width: 100%;
+    border-right: none;
+  }
+
+  .raw-textarea {
+    padding: 14px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .preview-pane {
+    padding: 16px 14px;
+  }
+
+  /* Modals on Mobile */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-box {
+    width: 96vw !important;
+    max-width: 96vw !important;
+    max-height: 90vh !important;
+    border-radius: 12px;
+  }
+
+  .modal-body {
+    padding: 14px;
+  }
+
+  .modal-form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .modal-body input,
+  .modal-body select,
+  .modal-body textarea {
+    font-size: 16px !important; /* Evita zoom indesejado no iOS / Safari / Chrome mobile */
+  }
+
+  .modal-footer {
+    padding: 10px 14px;
+    flex-wrap: wrap;
+  }
+  .modal-footer button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* Custom Views Padding & Header Stacking */
+  .full-panel-view {
+    padding: 14px 14px !important;
+  }
+
+  .view-header-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .header-action-buttons {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+  .header-action-buttons button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .panel-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  /* Image View Responsive Adjustments */
+  .responsive-grid-split {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .desc-mode-options {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .image-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .image-card-thumb {
+    height: 110px !important;
+  }
+
+  /* Hermes Chat View */
+  .hermes-chat-box {
+    padding: 12px !important;
+  }
+
+  .hermes-input-bar {
+    gap: 8px;
+  }
+  .hermes-input-bar input {
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+  }
+  .hermes-input-bar button {
+    padding: 10px 14px !important;
+  }
+
+  /* Toast Notifications */
+  .toast-container {
+    bottom: 60px;
+    left: 14px;
+    right: 14px;
+  }
+  .toast {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}
+
+/* Extra Compact Smartphones (< 540px) */
+@media (max-width: 540px) {
+  .titlebar-action-btn .btn-text {
+    display: none;
+  }
+  .pill-vault-count {
+    display: none;
+  }
+  .status-pill-text {
+    display: none;
+  }
+  .titlebar-brand {
+    font-size: 13px;
+  }
 }

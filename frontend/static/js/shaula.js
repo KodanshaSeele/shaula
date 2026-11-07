@@ -17,9 +17,16 @@ const state = {
 
 // --- INICIALIZAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
+  // Em telas pequenas (smartphones), padrão para modo preview em vez de split
+  if (window.innerWidth <= 768) {
+    state.activeMode = 'preview';
+  }
+
   initActivityBar();
   initViewToggles();
   initShortcuts();
+  initResponsiveListeners();
+
   loadVaultTree().then(() => {
     // Abrir nota principal Shaula Home se existir
     openNote('Shaula Home.md');
@@ -27,6 +34,37 @@ document.addEventListener('DOMContentLoaded', () => {
   startTelemetryPolling();
   updateTopStats();
 });
+
+// --- CONTROLE RESPONSIVO & MOBILE ---
+function initResponsiveListeners() {
+  window.addEventListener('resize', () => {
+    if (window.innerWidth <= 768) {
+      if (state.activeMode === 'split') {
+        setEditorMode('preview');
+      }
+    } else {
+      // Se retornar para desktop, fecha drawer e backdrop
+      toggleMobileSidebar(false);
+    }
+  });
+}
+
+function toggleMobileSidebar(force) {
+  const panel = document.getElementById('sidePanel');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (!panel) return;
+
+  const isOpen = panel.classList.contains('mobile-open');
+  const shouldOpen = typeof force === 'boolean' ? force : !isOpen;
+
+  if (shouldOpen) {
+    panel.classList.add('mobile-open');
+    if (backdrop) backdrop.classList.add('active');
+  } else {
+    panel.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('active');
+  }
+}
 
 // --- ATALHOS DE TECLADO ---
 function initShortcuts() {
@@ -60,7 +98,17 @@ function initActivityBar() {
     btn.addEventListener('click', () => {
       const targetView = btn.dataset.view;
       if (!targetView) return;
+
+      // Se clicar no Vault enquanto já está no Vault em smartphone, alterna gaveta
+      if (targetView === 'vault' && state.activeView === 'vault' && window.innerWidth <= 768) {
+        toggleMobileSidebar();
+        return;
+      }
+
       switchView(targetView);
+      if (window.innerWidth <= 768) {
+        toggleMobileSidebar(false);
+      }
     });
   });
 }
@@ -76,10 +124,11 @@ function switchView(viewName) {
   const sidePanel = document.getElementById('sidePanel');
 
   if (viewName === 'vault') {
-    sidePanel.style.display = 'flex';
+    sidePanel.style.display = '';
     editorWs.style.display = 'flex';
     customView.style.display = 'none';
   } else {
+    toggleMobileSidebar(false);
     sidePanel.style.display = 'none';
     editorWs.style.display = 'none';
     customView.style.display = 'block';
@@ -111,6 +160,11 @@ function initViewToggles() {
 }
 
 function setEditorMode(mode) {
+  // Em smartphones, modo split não é suportado por falta de largura horizontal
+  if (window.innerWidth <= 768 && mode === 'split') {
+    mode = 'preview';
+  }
+
   state.activeMode = mode;
   document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.querySelector(`.toggle-btn[data-mode="${mode}"]`);
@@ -233,6 +287,14 @@ async function openNote(notePath) {
     // Se estiver em outra view, voltar para o vault
     if (state.activeView !== 'vault') {
       switchView('vault');
+    }
+
+    // Fechar drawer lateral e adaptar modo de visualização em smartphones
+    if (window.innerWidth <= 768) {
+      toggleMobileSidebar(false);
+      if (state.activeMode === 'split') {
+        setEditorMode('preview');
+      }
     }
   } catch (err) {
     showToast(err.message, 'error');
@@ -476,7 +538,7 @@ async function renderVerificationView() {
   const container = document.getElementById('customViewContainer');
   container.innerHTML = `
     <div class="full-panel-view">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+      <div class="view-header-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
         <div>
           <h2 style="color:#f8fafc; font-size:22px; display:flex; align-items:center; gap:8px;">
             <span>🩺</span> Centro de Verificação Determinística
@@ -659,7 +721,7 @@ async function renderSchedulerView() {
   const container = document.getElementById('customViewContainer');
   container.innerHTML = `
     <div class="full-panel-view">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+      <div class="view-header-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
         <div>
           <h2 style="color:#f8fafc; font-size:22px; display:flex; align-items:center; gap:8px;">
             <span>⏱️</span> Motor de Agendamento (Scheduler)
@@ -673,7 +735,7 @@ async function renderSchedulerView() {
         </button>
       </div>
 
-      <div class="stat-card" style="margin-bottom:24px; padding:0; overflow:hidden;">
+      <div class="stat-card table-responsive" style="margin-bottom:24px; padding:0; overflow-x:auto;">
         <table style="width:100%; border-collapse:collapse; font-size:13px;" id="jobsTable">
           <thead>
             <tr style="background:var(--bg-card); color:var(--text-muted); text-align:left; border-bottom:1px solid var(--border-color);">
@@ -853,7 +915,7 @@ async function renderIntegrityView() {
   const container = document.getElementById('customViewContainer');
   container.innerHTML = `
     <div class="full-panel-view">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+      <div class="view-header-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
         <div>
           <h2 style="color:#f8fafc; font-size:22px; display:flex; align-items:center; gap:8px;">
             <span>🛡️</span> Integridade do Vault Exclusivo Shaula
@@ -862,7 +924,7 @@ async function renderIntegrityView() {
             Varredura e validação de Wikilinks [[alvo]], notas órfãs e criação de snapshots de segurança.
           </p>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div class="header-action-buttons" style="display:flex; gap:10px;">
           <button class="btn-secondary" onclick="createVaultBackup()">
             <span>📦</span> Criar Backup (.tar.gz)
           </button>
@@ -1111,7 +1173,7 @@ async function renderSettingsDashboard() {
 
     container.innerHTML = `
       <div class="full-panel-view">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+        <div class="view-header-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
           <div>
             <h2 style="color:#f8fafc; font-size:22px; display:flex; align-items:center; gap:8px;">
               <span>⚙️</span> Configurações & Interoperabilidade de Vaults
@@ -1538,9 +1600,9 @@ let imageUploadState = {
 function renderImagesView() {
   const container = document.getElementById('customViewContainer');
   container.innerHTML = `
-    <div class="full-panel-view" style="display:flex; flex-direction:column; height:100%; padding:20px 32px;">
+    <div class="full-panel-view images-view-panel" style="display:flex; flex-direction:column; height:100%;">
       <!-- Cabeçalho -->
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:18px;">
+      <div class="view-header-row" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:18px;">
         <div style="display:flex; align-items:center; gap:12px;">
           <div style="font-size:28px;">🖼️</div>
           <div>
@@ -1563,7 +1625,7 @@ function renderImagesView() {
 
       <!-- Controles de Configuração e Modo de Descrição -->
       <div class="stat-card" style="margin-bottom:18px; padding:16px 20px;">
-        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; margin-bottom:14px;">
+        <div class="responsive-grid-split" style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; margin-bottom:14px;">
           <div>
             <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">
               Título da Nota no Vault
@@ -1582,7 +1644,7 @@ function renderImagesView() {
           </div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:20px; border-top:1px solid var(--border-color); padding-top:12px;">
+        <div class="desc-mode-options" style="display:flex; align-items:center; gap:20px; border-top:1px solid var(--border-color); padding-top:12px;">
           <span style="font-size:12px; font-weight:600; color:#fff;">Modo de Descrição:</span>
           <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; cursor:pointer;">
             <input type="radio" name="descMode" value="shared" checked onchange="toggleDescMode('shared')">
@@ -1613,7 +1675,7 @@ function renderImagesView() {
 
       <!-- Grade de Pré-visualização das Imagens -->
       <div style="flex:1; overflow-y:auto;">
-        <div id="imageCardsGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
+        <div id="imageCardsGrid" class="image-cards-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
           <!-- Cards injetados dinamicamente -->
         </div>
       </div>
@@ -1722,7 +1784,7 @@ function renderImageGrid() {
       <div class="stat-card" style="padding:10px; position:relative; display:flex; flex-direction:column; gap:8px;">
         <button type="button" class="icon-btn" style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:#fff; border-radius:50%; width:24px; height:24px;" onclick="removeImageItem(${idx})" title="Remover">✕</button>
         
-        <div style="width:100%; height:160px; border-radius:6px; overflow:hidden; background:#121214; display:flex; align-items:center; justify-content:center;">
+        <div class="image-card-thumb" style="width:100%; height:160px; border-radius:6px; overflow:hidden; background:#121214; display:flex; align-items:center; justify-content:center;">
           <img src="${item.previewUrl}" style="max-width:100%; max-height:100%; object-fit:contain;">
         </div>
 
@@ -1809,9 +1871,9 @@ async function submitImageUpload() {
 async function renderHermesView() {
   const container = document.getElementById('customViewContainer');
   container.innerHTML = `
-    <div class="full-panel-view" style="display:flex; flex-direction:column; height:100%; padding:20px 28px;">
+    <div class="full-panel-view hermes-view-panel" style="display:flex; flex-direction:column; height:100%;">
       <!-- Cabeçalho do Hermes -->
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:16px;">
+      <div class="view-header-row" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:16px;">
         <div style="display:flex; align-items:center; gap:12px;">
           <div style="font-size:28px;">🤖</div>
           <div>
@@ -1824,12 +1886,12 @@ async function renderHermesView() {
             </p>
           </div>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div class="header-action-buttons" style="display:flex; gap:8px;">
           <button class="btn-primary" onclick="openSmartNoteModal()">
             <span>⚡</span> Nota Inteligente (Hermes)
           </button>
           <button class="btn-secondary" onclick="clearHermesChat()">
-            🗑️ Limpar Conversa
+            🗑️ Limpar
           </button>
         </div>
       </div>
@@ -1851,12 +1913,12 @@ async function renderHermesView() {
       </div>
 
       <!-- Histórico de Conversa -->
-      <div id="hermesChatBox" style="flex:1; overflow-y:auto; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:18px; display:flex; flex-direction:column; gap:16px; margin-bottom:16px;">
+      <div id="hermesChatBox" class="hermes-chat-box" style="flex:1; overflow-y:auto; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:18px; display:flex; flex-direction:column; gap:16px; margin-bottom:16px;">
         <!-- Mensagens renderizadas aqui -->
       </div>
 
       <!-- Barra de Envio -->
-      <div style="display:flex; gap:10px; align-items:center;">
+      <div class="hermes-input-bar" style="display:flex; gap:10px; align-items:center;">
         <input type="text" id="hermesPromptInput" placeholder="Pergunte ao Hermes, solicite análises de notas ou comandos para o Vault..." style="flex:1; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:#fff; font-size:13.5px; outline:none;" onkeydown="if(event.key === 'Enter') sendHermesMessage()">
         <button class="btn-primary" id="btnSendHermes" style="padding:12px 20px;" onclick="sendHermesMessage()">
           <span>Enviar</span> ➔
