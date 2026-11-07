@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🦂 Shaula — Centro de Comando & Vault</title>
+  <link rel="stylesheet" href="/static/css/obsidian.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>🦂</text></svg>">
+</head>
+<body>
+
+  <!-- Barra Superior / Titlebar -->
+  <header class="app-titlebar">
+    <div class="titlebar-brand">
+      <span class="brand-icon">🦂</span>
+      <span>SHAULA</span>
+      <span class="brand-sub">λ Scorpii · Command Dashboard</span>
+    </div>
+
+    <div class="titlebar-search-trigger" onclick="openSearchModal()">
+      <span>🔍</span>
+      <span>Buscar no Vault exclusivo...</span>
+      <span class="search-badge">Ctrl+O</span>
+    </div>
+
+    <button class="btn-primary" style="padding: 4px 12px; font-size: 11px; margin-left: 10px;" onclick="openSmartNoteModal()" title="Inserir dado parcial, cruzar dados e gerar nota com Hermes">
+      <span>⚡</span> Nova Nota Inteligente (Hermes)
+    </button>
+    <button class="btn-secondary" style="padding: 4px 12px; font-size: 11px; margin-left: 6px;" onclick="switchView('images')" title="Inserir até 20 imagens com descrição única ou individual">
+      <span>🖼️</span> Inserir Imagens
+    </button>
+
+    <div class="titlebar-stats">
+      <span class="pill-badge" id="hostStatusPill">
+        <span class="dot dot-green"></span>
+        <span>Conectando telemetria...</span>
+      </span>
+      <span class="pill-badge" id="vaultNotesCount">
+        0 notas no vault
+      </span>
+    </div>
+  </header>
+
+  <!-- Área Principal -->
+  <main class="app-workspace">
+    <!-- Activity Bar (Ícones de Navegação) -->
+    <nav class="activity-bar">
+      <button class="activity-btn active" data-view="vault" title="Explorador de Arquivos do Vault">📁</button>
+      <button class="activity-btn" data-view="images" title="Inserir & Triagem de Imagens (até 20)">🖼️</button>
+      <button class="activity-btn" data-view="hermes" title="Agente Hermes (Assistente Inteligente & Tarefas)">🤖</button>
+      <button class="activity-btn" data-view="verification" title="Diagnóstico & Verificação">🩺</button>
+      <button class="activity-btn" data-view="scheduler" title="Motor de Agendamento">⏱️</button>
+      <button class="activity-btn" data-view="integrity" title="Integridade do Vault & Backups">🛡️</button>
+      <div style="margin-top:auto;"></div>
+      <button class="activity-btn" data-view="settings" title="Configurações & Vault Auxiliar (Senha: 3884)">⚙️</button>
+    </nav>
+
+    <!-- Side Panel (Explorador do Vault Exclusivo) -->
+    <aside class="side-panel" id="sidePanel">
+      <div class="side-panel-header">
+        <span class="side-panel-title">Shaula Vault</span>
+        <div class="panel-actions">
+          <button class="icon-btn" onclick="promptNewNote()" title="Nova Nota">➕</button>
+          <button class="icon-btn" onclick="promptNewFolder()" title="Nova Pasta">📁</button>
+          <button class="icon-btn" onclick="loadVaultTree()" title="Atualizar">🔄</button>
+        </div>
+      </div>
+      <div class="vault-tree" id="vaultTree">
+        <!-- Árvore injetada via JS -->
+      </div>
+    </aside>
+
+    <!-- Editor Workspace (Visualização Padrão) -->
+    <section class="editor-workspace" id="editorWorkspace">
+      <!-- Toolbar da Nota -->
+      <div class="editor-toolbar">
+        <div class="note-meta-title">
+          <span>📄</span>
+          <span id="currentNoteTitle">Selecione uma nota</span>
+          <span class="note-path-tag" id="currentNotePath"></span>
+          <span class="pill-badge" id="saveStatusBadge" style="font-size:10px; padding:2px 6px;">✓ Pronto</span>
+        </div>
+
+        <div class="editor-controls">
+          <div class="view-toggle">
+            <button class="toggle-btn" data-mode="edit">Editar</button>
+            <button class="toggle-btn active" data-mode="split">Split</button>
+            <button class="toggle-btn" data-mode="preview">Leitura</button>
+          </div>
+
+          <button class="btn-primary" onclick="saveCurrentNote()">
+            <span>💾</span> Salvar
+          </button>
+          <button class="btn-secondary" onclick="deleteCurrentNote()" title="Excluir Nota" style="color:var(--status-red);">
+            🗑️
+          </button>
+        </div>
+      </div>
+
+      <!-- Divisão de Telas Editor / Preview -->
+      <div class="pane-container">
+        <!-- Painel de Edição Raw Markdown -->
+        <div class="editor-pane" id="editorPane">
+          <textarea id="rawEditor" class="raw-textarea" placeholder="Escreva suas anotações em Markdown com suporte a [[Wikilinks]] e frontmatter YAML..."></textarea>
+        </div>
+
+        <!-- Painel de Pré-visualização Obsidian -->
+        <div class="preview-pane" id="previewPane">
+          <div class="markdown-body" id="markdownPreview">
+            <!-- Renderizado dinamicamente -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Container de Visualizações Especiais (Verificação / Scheduler / Integridade) -->
+    <div id="customViewContainer" style="display:none; flex:1; overflow:hidden;"></div>
+  </main>
+
+  <!-- Status Bar Inferior -->
+  <footer class="app-statusbar">
+    <div class="statusbar-left">
+      <span>Shaula Core v1.0.0</span>
+      <span id="statWords">0 palavras</span>
+      <span id="statChars">0 caracteres</span>
+    </div>
+    <div class="statusbar-right">
+      <span>UTF-8</span>
+      <span>Markdown + Obsidian Wikilinks</span>
+      <span>Porta: 5000</span>
+    </div>
+  </footer>
+
+  <!-- Modal: Quick Switcher / Busca -->
+  <div class="modal-overlay" id="searchModal" style="display:none;" onclick="if(event.target === this) closeSearchModal()">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span style="font-weight:600; font-size:14px;">🔍 Busca Rápida no Vault</span>
+        <button class="icon-btn" onclick="closeSearchModal()">✕</button>
+      </div>
+      <div style="padding: 12px 18px; border-bottom: 1px solid var(--border-color);">
+        <input type="text" id="searchModalInput" placeholder="Digite para buscar notas ou conteúdo..." oninput="handleSearchInput(event)" style="width:100%; padding:10px 14px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:14px; outline:none;">
+      </div>
+      <div class="modal-body" id="searchResults" style="max-height: 400px; padding: 6px;"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Novo Agendamento -->
+  <div class="modal-overlay" id="jobModal" style="display:none;" onclick="if(event.target === this) closeNewJobModal()">
+    <div class="modal-box" style="width: 500px;">
+      <div class="modal-header">
+        <span style="font-weight:600; font-size:14px;">➕ Criar Novo Agendamento</span>
+        <button class="icon-btn" onclick="closeNewJobModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 14px;">
+          <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">Nome da Tarefa</label>
+          <input type="text" id="jobNameInput" placeholder="Ex: Verificação Noturna de Recursos" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:13px; outline:none;">
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">Ação / Rotina</label>
+          <select id="jobActionSelect" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:13px; outline:none;">
+            <option value="system_verification">Verificação Completa do Sistema (Telemetria + Serviços)</option>
+            <option value="vault_integrity">Varredura de Integridade do Vault (Wikilinks)</option>
+            <option value="vault_backup">Backup Automatizado (.tar.gz)</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:4px;">Intervalo de Repetição (em minutos)</label>
+          <input type="number" id="jobIntervalInput" value="60" min="1" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:13px; outline:none;">
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="jobSaveNoteCheck" checked>
+          <label for="jobSaveNoteCheck" style="font-size:12px; color:var(--text-secondary);">Salvar nota de relatório no Vault a cada execução</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeNewJobModal()">Cancelar</button>
+        <button class="btn-primary" onclick="submitNewJob()">Salvar Agendamento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Ingestão Inteligente de Ativos & Notas pelo Agente Hermes -->
+  <div class="modal-overlay" id="smartNoteModal" style="display:none;" onclick="if(event.target === this) closeSmartNoteModal()">
+    <div class="modal-box" style="width: 620px;">
+      <div class="modal-header">
+        <span style="font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px;">
+          <span>⚡</span> Ingestão Inteligente com IA (Agente Hermes)
+        </span>
+        <button class="icon-btn" onclick="closeSmartNoteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-muted); font-size:12px; margin-bottom:14px;">
+          Insira um dado parcial, nome de máquina ou serial (ex: <code>injetora1 da injeção plastica</code> ou <code>50026B76871E8D22</code>). O Agente Hermes cruzará os Vaults para <strong>impedir duplicatas</strong>, deduzirá setor, tag patrimonial, número e especificações técnicas, gerando a ficha completa.
+        </p>
+
+        <div style="margin-bottom: 14px;">
+          <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">
+            Identificação / Descrição Parcial da Máquina ou Ativo
+          </label>
+          <input type="text" id="smartNoteInput" placeholder="Ex: injetora1 da injeção plastica, compressor parafuso linha B, 50026B76871E8D22..." style="width:100%; padding:10px 14px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:13.5px; outline:none;" oninput="debounceCheckDuplicate()" onkeydown="if(event.key === 'Enter') submitSmartNoteWorkflow(false)">
+        </div>
+
+        <!-- Alerta de Anti-Duplicação -->
+        <div id="duplicateWarningBox" style="display:none; padding:12px 14px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.4); border-left:4px solid var(--accent-gold); border-radius:6px; margin-bottom:14px;">
+          <div style="font-size:12.5px; font-weight:600; color:var(--accent-gold); display:flex; align-items:center; gap:6px;">
+            <span>⚠️</span> Possível Duplicidade Detectada no Vault
+          </div>
+          <div id="duplicateNoteInfo" style="font-size:12px; color:#e2e8f0; margin-top:4px;"></div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button type="button" class="btn-secondary" id="btnOpenExistingNote" style="font-size:11px; padding:3px 8px;">
+              📄 Abrir Nota Existente
+            </button>
+            <button type="button" class="btn-secondary" style="font-size:11px; padding:3px 8px; color:var(--accent-gold);" onclick="submitSmartNoteWorkflow(true)">
+              ➕ Criar Mesmo Assim (Forçar)
+            </button>
+          </div>
+        </div>
+
+        <!-- Seriais / Hardware detectados no host para atalho rápido -->
+        <div style="margin-bottom: 14px;" id="hostSerialsSection">
+          <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:600;">Atalhos de Hardware Detectados no Host</label>
+          <div id="hostSerialsPills" style="display:flex; flex-wrap:wrap; gap:6px; max-height:80px; overflow-y:auto; padding:4px 0;">
+            <span style="font-size:11px; color:var(--text-muted);">Consultando hardware...</span>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 14px;">
+          <div>
+            <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Título Opcional</label>
+            <input type="text" id="smartNoteTitleInput" placeholder="Deixe em branco para auto-dedução" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12px; outline:none;">
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Pasta de Destino</label>
+            <select id="smartNoteFolderSelect" style="width:100%; padding:8px 12px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; color:#fff; font-size:12px; outline:none;">
+              <option value="00 - Inbox">00 - Inbox (Captura rápida)</option>
+              <option value="03 - Knowledge">03 - Knowledge (Base de ativos)</option>
+              <option value="01 - Verification">01 - Verification (Diagnósticos)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="smartNoteProcessStatus" style="display:none; padding:10px 14px; background:rgba(124, 58, 237, 0.1); border-left:3px solid var(--accent-purple); border-radius:4px; font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
+          ⏳ <strong>Hermes cruzando dados:</strong> Consultando setor, modelo e histórico para gerar ficha técnica...
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeSmartNoteModal()">Cancelar</button>
+        <button class="btn-primary" id="btnSubmitSmartNote" onclick="submitSmartNoteWorkflow(false)">
+          <span>🚀</span> Cruzar Dados e Gerar Nota
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Bibliotecas JS -->
+  <script src="/static/js/marked.min.js"></script>
+  <script src="/static/js/shaula.js"></script>
+</body>
+</html>

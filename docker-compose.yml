@@ -1,0 +1,28 @@
+services:
+  shaula:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: shaula-dashboard:latest
+    container_name: shaula-dashboard
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - SHAULA_PORT=5000
+      - SHAULA_HOST=0.0.0.0
+      - SHAULA_ADMIN_PASSWORD=3884
+      - SHAULA_VAULT_PATH=/app/vault
+      - SHAULA_AUX_VAULT_PATH=/app/aux_vault
+      - SHAULA_DATA_PATH=/app/data
+      - HERMES_MODEL=reflection/beam-1.0-501b-a23b:free
+      - HERMES_API_BASE=https://inference-api.nousresearch.com/v1
+    volumes:
+      # Vault Exclusivo do Shaula persistido no host
+      - ./vault:/app/vault
+      # Vault Auxiliar interoperável montado no container
+      - ./aux_vault:/app/aux_vault
+      # Dados, configurações e agendamentos persistidos
+      - ./data:/app/data

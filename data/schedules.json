@@ -1,0 +1,41 @@
+[
+  {
+    "id": "job_system_health",
+    "name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "interval_minutes": 30,
+    "enabled": true,
+    "save_note": true,
+    "created_at": "2026-11-06T21:47:22.628931",
+    "last_run": null,
+    "next_run": null,
+    "status": "idle",
+    "last_result": null
+  },
+  {
+    "id": "job_vault_integrity",
+    "name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "interval_minutes": 60,
+    "enabled": true,
+    "save_note": false,
+    "created_at": "2026-11-06T21:47:22.628939",
+    "last_run": null,
+    "next_run": null,
+    "status": "idle",
+    "last_result": null
+  },
+  {
+    "id": "job_vault_backup",
+    "name": "Backup Automatizado do Vault",
+    "action": "vault_backup",
+    "interval_minutes": 1440,
+    "enabled": true,
+    "save_note": false,
+    "created_at": "2026-11-06T21:47:22.628940",
+    "last_run": null,
+    "next_run": null,
+    "status": "idle",
+    "last_result": null
+  }
+]

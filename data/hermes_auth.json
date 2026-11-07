@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "providers": {
+    "nous": {
+      "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InByb2QtMjAyNi0wNS0wOC0xIn0.eyJjbGllbnRfaWQiOiJoZXJtZXMtY2xpIiwib3JnX2lkIjoiY21xYnI0bjZpMDAyaGh5MGI4MzJ5cDg5aCIsImVtYWlsIjoia29kYW5zaGFzZWVsZUBnbWFpbC5jb20iLCJjb25uZWN0b3JfY29ob3J0IjoiZXh0ZXJuYWwiLCJtYW5hZ2VkX3Rvb2xzIjp0cnVlLCJzY29wZSI6ImluZmVyZW5jZTppbnZva2UiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJvYXV0aF9jb250cmFjdF92ZXJzaW9uIjoxLCJzaWQiOiJzaWRfU1FOYjVKaUdJQzNlY2xWUWUyejRaS1VXIiwicHJvZHVjdF9pZCI6Im5vdXMtaGVybWVzLWFnZW50Iiwibm91c19jbGllbnQiOiJoZXJtZXMtYWdlbnQiLCJ0b29sX2dhdGV3YXlfYWRtaW4iOmZhbHNlLCJwYWlkX2FjY2VzcyI6ZmFsc2UsInByaXZhY3lfbW9kZSI6InN0YW5kYXJkIiwicG9saWN5X3ByZXNlbnQiOmZhbHNlLCJtZW1iZXJfc3BlbmRfY2FwX2V4Y2VlZGVkIjpmYWxzZSwibWVtYmVyX3NwZW5kX2NhcF91c2QiOm51bGwsIm1lbWJlcl9zcGVuZF91c2QiOiIwIiwibWVtYmVyX3NwZW5kX2NhcF9yZW1haW5pbmdfdXNkIjpudWxsLCJtZW1iZXJfZnJvbnRpZXJfc3BlbmRfY2FwX2V4Y2VlZGVkIjpmYWxzZSwibWVtYmVyX2Zyb250aWVyX3NwZW5kX2NhcF91c2QiOm51bGwsIm1lbWJlcl9mcm9udGllcl9zcGVuZF91c2QiOiIwIiwibWVtYmVyX2Zyb250aWVyX3NwZW5kX2NhcF9yZW1haW5pbmdfdXNkIjpudWxsLCJ0b29sX2FjY2VzcyI6eyJlbmFibGVkIjp0cnVlLCJjb3ZlcmFnZSI6eyJmaXJlY3Jhd2wiOnRydWUsImZhbCI6dHJ1ZSwiZmFsLXZpZGVvIjpmYWxzZSwib3BlbmFpLWF1ZGlvIjp0cnVlLCJicm93c2VyLXVzZSI6dHJ1ZSwibW9kYWwiOnRydWUsImtyZWEiOmZhbHNlfX0sInN1YnNjcmlwdGlvbl90aWVyIjo1LCJyYXRlX2xpbWl0X3Byb2ZpbGVfaWQiOi0xMiwicmF0ZV9saW1pdF9ycG0iOjUwLCJyYXRlX2xpbWl0X3RwbSI6NTAwMDAwLCJyYXRlX2xpbWl0X3JwaCI6MjEwMCwicmF0ZV9saW1pdF90cGgiOjYwMDAwMDAsInJhdGVfbGltaXRfc291cmNlIjoiZnJlZV9oZXJtZXNfYWdlbnQiLCJzdWIiOiJjbXFicjRuNWUwMDJmaHkwYnhobXhmZXdpIiwiaXNzIjoiaHR0cHM6Ly9wb3J0YWwubm91c3Jlc2VhcmNoLmNvbSIsImF1ZCI6Imhlcm1lcy1jbGk6aGVybWVzLWNsaSIsImlhdCI6MTc5NDAxNzYyOSwiZXhwIjoxNzk0MDIxMjI5LCJqdGkiOiJBSDBCSW41bjNvQ0V6VFdEVmRJMUV3In0.nk_dPNWHHkf70H2i9ZEF0rKs2xMcBIHS2dLXf42zxw-58PXdEkZnPvZjBb8aJq6mBRQ0c6forGQUGi8t-LK4bBwQwJLXhCs1hzC-_0GJawMiJ9MOJKcXvb0GAZmaOHq098_Jgcu31cpEhohCNw6BQZG0x4VulHDfUv6Hp4nccA3aDbJTWVXabQ3Z-lcGqcQuWMnnt-jAqU6XoNDhkMoa_kUa-3c7DUwiM56ml7YlqABE_AygLUwhaKoVS18N_74_lqpX3U8RecIi7kkOA6yOZEpwLiPjtk0qdy1JndtDcdotOsjgNlM7ZqbF0zaa8917fbBbt5qFM-rIMyDTGjWHPQ",
+      "refresh_token": "rt_NuMYnehZU3TvkLXSblS6VyMYwyiiHSvqhgDnDel4szGRS2OEwFlssNapoEXQ2qji",
+      "client_id": "hermes-cli",
+      "portal_base_url": "https://portal.nousresearch.com",
+      "inference_base_url": "https://inference-api.nousresearch.com/v1",
+      "token_type": "Bearer",
+      "scope": "inference:invoke",
+      "obtained_at": "2026-11-07T02:13:49.445128+00:00",
+      "expires_at": "2026-11-07T03:13:49+00:00",
+      "agent_key": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InByb2QtMjAyNi0wNS0wOC0xIn0.eyJjbGllbnRfaWQiOiJoZXJtZXMtY2xpIiwib3JnX2lkIjoiY21xYnI0bjZpMDAyaGh5MGI4MzJ5cDg5aCIsImVtYWlsIjoia29kYW5zaGFzZWVsZUBnbWFpbC5jb20iLCJjb25uZWN0b3JfY29ob3J0IjoiZXh0ZXJuYWwiLCJtYW5hZ2VkX3Rvb2xzIjp0cnVlLCJzY29wZSI6ImluZmVyZW5jZTppbnZva2UiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJvYXV0aF9jb250cmFjdF92ZXJzaW9uIjoxLCJzaWQiOiJzaWRfU1FOYjVKaUdJQzNlY2xWUWUyejRaS1VXIiwicHJvZHVjdF9pZCI6Im5vdXMtaGVybWVzLWFnZW50Iiwibm91c19jbGllbnQiOiJoZXJtZXMtYWdlbnQiLCJ0b29sX2dhdGV3YXlfYWRtaW4iOmZhbHNlLCJwYWlkX2FjY2VzcyI6ZmFsc2UsInByaXZhY3lfbW9kZSI6InN0YW5kYXJkIiwicG9saWN5X3ByZXNlbnQiOmZhbHNlLCJtZW1iZXJfc3BlbmRfY2FwX2V4Y2VlZGVkIjpmYWxzZSwibWVtYmVyX3NwZW5kX2NhcF91c2QiOm51bGwsIm1lbWJlcl9zcGVuZF91c2QiOiIwIiwibWVtYmVyX3NwZW5kX2NhcF9yZW1haW5pbmdfdXNkIjpudWxsLCJtZW1iZXJfZnJvbnRpZXJfc3BlbmRfY2FwX2V4Y2VlZGVkIjpmYWxzZSwibWVtYmVyX2Zyb250aWVyX3NwZW5kX2NhcF91c2QiOm51bGwsIm1lbWJlcl9mcm9udGllcl9zcGVuZF91c2QiOiIwIiwibWVtYmVyX2Zyb250aWVyX3NwZW5kX2NhcF9yZW1haW5pbmdfdXNkIjpudWxsLCJ0b29sX2FjY2VzcyI6eyJlbmFibGVkIjp0cnVlLCJjb3ZlcmFnZSI6eyJmaXJlY3Jhd2wiOnRydWUsImZhbCI6dHJ1ZSwiZmFsLXZpZGVvIjpmYWxzZSwib3BlbmFpLWF1ZGlvIjp0cnVlLCJicm93c2VyLXVzZSI6dHJ1ZSwibW9kYWwiOnRydWUsImtyZWEiOmZhbHNlfX0sInN1YnNjcmlwdGlvbl90aWVyIjo1LCJyYXRlX2xpbWl0X3Byb2ZpbGVfaWQiOi0xMiwicmF0ZV9saW1pdF9ycG0iOjUwLCJyYXRlX2xpbWl0X3RwbSI6NTAwMDAwLCJyYXRlX2xpbWl0X3JwaCI6MjEwMCwicmF0ZV9saW1pdF90cGgiOjYwMDAwMDAsInJhdGVfbGltaXRfc291cmNlIjoiZnJlZV9oZXJtZXNfYWdlbnQiLCJzdWIiOiJjbXFicjRuNWUwMDJmaHkwYnhobXhmZXdpIiwiaXNzIjoiaHR0cHM6Ly9wb3J0YWwubm91c3Jlc2VhcmNoLmNvbSIsImF1ZCI6Imhlcm1lcy1jbGk6aGVybWVzLWNsaSIsImlhdCI6MTc5NDAxNzYyOSwiZXhwIjoxNzk0MDIxMjI5LCJqdGkiOiJBSDBCSW41bjNvQ0V6VFdEVmRJMUV3In0.nk_dPNWHHkf70H2i9ZEF0rKs2xMcBIHS2dLXf42zxw-58PXdEkZnPvZjBb8aJq6mBRQ0c6forGQUGi8t-LK4bBwQwJLXhCs1hzC-_0GJawMiJ9MOJKcXvb0GAZmaOHq098_Jgcu31cpEhohCNw6BQZG0x4VulHDfUv6Hp4nccA3aDbJTWVXabQ3Z-lcGqcQuWMnnt-jAqU6XoNDhkMoa_kUa-3c7DUwiM56ml7YlqABE_AygLUwhaKoVS18N_74_lqpX3U8RecIi7kkOA6yOZEpwLiPjtk0qdy1JndtDcdotOsjgNlM7ZqbF0zaa8917fbBbt5qFM-rIMyDTGjWHPQ",
+      "agent_key_expires_at": "2026-11-07T03:13:49+00:00",
+      "tls": {
+        "insecure": false,
+        "ca_bundle": null
+      },
+      "expires_in": 3599,
+      "agent_key_id": null,
+      "agent_key_expires_in": 3599,
+      "agent_key_reused": false,
+      "agent_key_obtained_at": "2026-11-07T02:13:49.455639+00:00"
+    }
+  },
+  "active_provider": "nous",
+  "updated_at": "2026-11-07T02:13:49.488037+00:00",
+  "credential_pool": {
+    "nous": [
+      {
+        "id": "4263ee",
+        "label": "kodanshaseele@gmail.com",
+        "auth_type": "oauth",
+        "priority": 0,
+        "source": "device_code",
+        "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InByb2QtMjAyNi0wNS0wOC0xIn0.eyJjbGllbnRfaWQiOiJoZXJtZXMtY2xpIiwib3JnX2lkIjoiY21xYnI0bjZpMDAyaGh5MGI4MzJ5cDg5aCIsImVtYWlsIjoia29kYW5zaGFzZWVsZUBnbWFpbC5jb20iLCJjb25uZWN0b3JfY29ob3J0IjoiZXh0ZXJuYWwiLCJtYW5hZ2VkX3Rvb2xzIjp0cnVlLCJzY29wZSI6ImluZmVyZW5jZTppbnZva2UiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJvYXV0aF9jb250cmFjdF92ZXJzaW9uIjoxLCJzaWQiOiJzaWRfU1FOYjVKaUdJQzNlY2xWUWUyejRaS1VXIiwicHJvZHVjdF9pZCI6Im5vdXMtaGVybWVzLWFnZW50Iiwibm91c19jbGllbnQiOiJoZXJtZXMtYWdlbnQiLCJ0b29sX2dhdGV3YXlfYWRtaW4iOmZhbHNlLCJwYWlkX2FjY2VzcyI6ZmFsc2UsInByaXZhY3lfbW9kZSI6InN0YW5kYXJkIiwicG9saWN5X3ByZXNlbnQiOmZhbHNlLCJtZW1iZXJfc3BlbmRfY2FwX2V4Y2VlZGVkIjpmYWxzZSwibWVtYmVyX3NwZW5kX2NhcF91c2QiOm51bGwsIm1lbWJlcl9zcGVuZF91c2QiOiIwIiwibWVtYmVyX3NwZW5kX2NhcF9yZW1haW5pbmdfdXNkIjpudWxsLCJtZW1iZXJfZnJvbnRpZXJfc3BlbmRfY2FwX2V4Y2VlZGVkIjpmYWxzZSwibWVtYmVyX2Zyb250aWVyX3NwZW5kX2NhcF91c2QiOm51bGwsIm1lbWJlcl9mcm9udGllcl9zcGVuZF91c2QiOiIwIiwibWVtYmVyX2Zyb250aWVyX3NwZW5kX2NhcF9yZW1haW5pbmdfdXNkIjpudWxsLCJ0b29sX2FjY2VzcyI6eyJlbmFibGVkIjp0cnVlLCJjb3ZlcmFnZSI6eyJmaXJlY3Jhd2wiOnRydWUsImZhbCI6dHJ1ZSwiZmFsLXZpZGVvIjpmYWxzZSwib3BlbmFpLWF1ZGlvIjp0cnVlLCJicm93c2VyLXVzZSI6dHJ1ZSwibW9kYWwiOnRydWUsImtyZWEiOmZhbHNlfX0sInN1YnNjcmlwdGlvbl90aWVyIjo1LCJyYXRlX2xpbWl0X3Byb2ZpbGVfaWQiOi0xMiwicmF0ZV9saW1pdF9ycG0iOjUwLCJyYXRlX2xpbWl0X3RwbSI6NTAwMDAwLCJyYXRlX2xpbWl0X3JwaCI6MjEwMCwicmF0ZV9saW1pdF90cGgiOjYwMDAwMDAsInJhdGVfbGltaXRfc291cmNlIjoiZnJlZV9oZXJtZXNfYWdlbnQiLCJzdWIiOiJjbXFicjRuNWUwMDJmaHkwYnhobXhmZXdpIiwiaXNzIjoiaHR0cHM6Ly9wb3J0YWwubm91c3Jlc2VhcmNoLmNvbSIsImF1ZCI6Imhlcm1lcy1jbGk6aGVybWVzLWNsaSIsImlhdCI6MTc5NDAxNzYyOSwiZXhwIjoxNzk0MDIxMjI5LCJqdGkiOiJBSDBCSW41bjNvQ0V6VFdEVmRJMUV3In0.nk_dPNWHHkf70H2i9ZEF0rKs2xMcBIHS2dLXf42zxw-58PXdEkZnPvZjBb8aJq6mBRQ0c6forGQUGi8t-LK4bBwQwJLXhCs1hzC-_0GJawMiJ9MOJKcXvb0GAZmaOHq098_Jgcu31cpEhohCNw6BQZG0x4VulHDfUv6Hp4nccA3aDbJTWVXabQ3Z-lcGqcQuWMnnt-jAqU6XoNDhkMoa_kUa-3c7DUwiM56ml7YlqABE_AygLUwhaKoVS18N_74_lqpX3U8RecIi7kkOA6yOZEpwLiPjtk0qdy1JndtDcdotOsjgNlM7ZqbF0zaa8917fbBbt5qFM-rIMyDTGjWHPQ",
+        "refresh_token": "rt_NuMYnehZU3TvkLXSblS6VyMYwyiiHSvqhgDnDel4szGRS2OEwFlssNapoEXQ2qji",
+        "last_status": "ok",
+        "last_status_at": null,
+        "last_error_code": null,
+        "last_error_reason": null,
+        "last_error_message": null,
+        "last_error_reset_at": null,
+        "expires_at": "2026-11-07T03:13:49+00:00",
+        "inference_base_url": "https://inference-api.nousresearch.com/v1",
+        "agent_key": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InByb2QtMjAyNi0wNS0wOC0xIn0.eyJjbGllbnRfaWQiOiJoZXJtZXMtY2xpIiwib3JnX2lkIjoiY21xYnI0bjZpMDAyaGh5MGI4MzJ5cDg5aCIsImVtYWlsIjoia29kYW5zaGFzZWVsZUBnbWFpbC5jb20iLCJjb25uZWN0b3JfY29ob3J0IjoiZXh0ZXJuYWwiLCJtYW5hZ2VkX3Rvb2xzIjp0cnVlLCJzY29wZSI6ImluZmVyZW5jZTppbnZva2UiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJvYXV0aF9jb250cmFjdF92ZXJzaW9uIjoxLCJzaWQiOiJzaWRfU1FOYjVKaUdJQzNlY2xWUWUyejRaS1VXIiwicHJvZHVjdF9pZCI6Im5vdXMtaGVybWVzLWFnZW50Iiwibm91c19jbGllbnQiOiJoZXJtZXMtYWdlbnQiLCJ0b29sX2dhdGV3YXlfYWRtaW4iOmZhbHNlLCJwYWlkX2FjY2VzcyI6ZmFsc2UsInByaXZhY3lfbW9kZSI6InN0YW5kYXJkIiwicG9saWN5X3ByZXNlbnQiOmZhbHNlLCJtZW1iZXJfc3BlbmRfY2FwX2V4Y2VlZGVkIjpmYWxzZSwibWVtYmVyX3NwZW5kX2NhcF91c2QiOm51bGwsIm1lbWJlcl9zcGVuZF91c2QiOiIwIiwibWVtYmVyX3NwZW5kX2NhcF9yZW1haW5pbmdfdXNkIjpudWxsLCJtZW1iZXJfZnJvbnRpZXJfc3BlbmRfY2FwX2V4Y2VlZGVkIjpmYWxzZSwibWVtYmVyX2Zyb250aWVyX3NwZW5kX2NhcF91c2QiOm51bGwsIm1lbWJlcl9mcm9udGllcl9zcGVuZF91c2QiOiIwIiwibWVtYmVyX2Zyb250aWVyX3NwZW5kX2NhcF9yZW1haW5pbmdfdXNkIjpudWxsLCJ0b29sX2FjY2VzcyI6eyJlbmFibGVkIjp0cnVlLCJjb3ZlcmFnZSI6eyJmaXJlY3Jhd2wiOnRydWUsImZhbCI6dHJ1ZSwiZmFsLXZpZGVvIjpmYWxzZSwib3BlbmFpLWF1ZGlvIjp0cnVlLCJicm93c2VyLXVzZSI6dHJ1ZSwibW9kYWwiOnRydWUsImtyZWEiOmZhbHNlfX0sInN1YnNjcmlwdGlvbl90aWVyIjo1LCJyYXRlX2xpbWl0X3Byb2ZpbGVfaWQiOi0xMiwicmF0ZV9saW1pdF9ycG0iOjUwLCJyYXRlX2xpbWl0X3RwbSI6NTAwMDAwLCJyYXRlX2xpbWl0X3JwaCI6MjEwMCwicmF0ZV9saW1pdF90cGgiOjYwMDAwMDAsInJhdGVfbGltaXRfc291cmNlIjoiZnJlZV9oZXJtZXNfYWdlbnQiLCJzdWIiOiJjbXFicjRuNWUwMDJmaHkwYnhobXhmZXdpIiwiaXNzIjoiaHR0cHM6Ly9wb3J0YWwubm91c3Jlc2VhcmNoLmNvbSIsImF1ZCI6Imhlcm1lcy1jbGk6aGVybWVzLWNsaSIsImlhdCI6MTc5NDAxNzYyOSwiZXhwIjoxNzk0MDIxMjI5LCJqdGkiOiJBSDBCSW41bjNvQ0V6VFdEVmRJMUV3In0.nk_dPNWHHkf70H2i9ZEF0rKs2xMcBIHS2dLXf42zxw-58PXdEkZnPvZjBb8aJq6mBRQ0c6forGQUGi8t-LK4bBwQwJLXhCs1hzC-_0GJawMiJ9MOJKcXvb0GAZmaOHq098_Jgcu31cpEhohCNw6BQZG0x4VulHDfUv6Hp4nccA3aDbJTWVXabQ3Z-lcGqcQuWMnnt-jAqU6XoNDhkMoa_kUa-3c7DUwiM56ml7YlqABE_AygLUwhaKoVS18N_74_lqpX3U8RecIi7kkOA6yOZEpwLiPjtk0qdy1JndtDcdotOsjgNlM7ZqbF0zaa8917fbBbt5qFM-rIMyDTGjWHPQ",
+        "agent_key_expires_at": "2026-11-07T03:13:49+00:00",
+        "request_count": 132,
+        "expires_in": 3599,
+        "token_type": "Bearer",
+        "agent_key_obtained_at": "2026-11-07T02:13:49.455639+00:00",
+        "agent_key_expires_in": 3599,
+        "portal_base_url": "https://portal.nousresearch.com",
+        "client_id": "hermes-cli",
+        "scope": "inference:invoke",
+        "obtained_at": "2026-11-07T02:13:49.445128+00:00",
+        "agent_key_reused": false,
+        "tls": {
+          "insecure": false,
+          "ca_bundle": null
+        }
+      }
+    ],
+    "copilot": [],
+    "custom:lfm3": [
+      {
+        "id": "12e482",
+        "label": "lfm3",
+        "auth_type": "api_key",
+        "priority": 0,
+        "source": "config:lfm3",
+        "last_status": null,
+        "last_status_at": null,
+        "last_error_code": null,
+        "last_error_reason": null,
+        "last_error_message": null,
+        "last_error_reset_at": null,
+        "base_url": "http://127.0.0.1:8080/v1",
+        "request_count": 0,
+        "secret_fingerprint": "sha256:a1435e5878ebdbd6"
+      }
+    ],
+    "custom:ollama": [
+      {
+        "id": "f80e27",
+        "label": "ollama",
+        "auth_type": "api_key",
+        "priority": 0,
+        "source": "config:ollama",
+        "last_status": null,
+        "last_status_at": null,
+        "last_error_code": null,
+        "last_error_reason": null,
+        "last_error_message": null,
+        "last_error_reset_at": null,
+        "base_url": "http://127.0.0.1:11434/v1",
+        "request_count": 0,
+        "secret_fingerprint": "sha256:a1435e5878ebdbd6"
+      }
+    ]
+  }
+}
