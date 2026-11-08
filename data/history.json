@@ -1,0 +1,422 @@
+[
+  {
+    "id": "9236cc23",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T00:14:23.162362",
+    "success": true,
+    "duration_sec": 0.26,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_001422.md)"
+  },
+  {
+    "id": "fd469c01",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T00:44:23.550209",
+    "success": true,
+    "duration_sec": 0.27,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_004423.md)"
+  },
+  {
+    "id": "6d7674bb",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T00:44:23.555764",
+    "success": true,
+    "duration_sec": 0.01,
+    "message": "Integridade: HEALTHY | 15 notas | 0 links quebrados"
+  },
+  {
+    "id": "f382e506",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T01:14:23.932259",
+    "success": true,
+    "duration_sec": 0.26,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_011423.md)"
+  },
+  {
+    "id": "d1dc6056",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T01:44:24.323530",
+    "success": true,
+    "duration_sec": 0.27,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_014424.md)"
+  },
+  {
+    "id": "5f235c09",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T01:44:24.331949",
+    "success": true,
+    "duration_sec": 0.01,
+    "message": "Integridade: HEALTHY | 17 notas | 0 links quebrados"
+  },
+  {
+    "id": "5558a405",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T02:14:24.725816",
+    "success": true,
+    "duration_sec": 0.28,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_021424.md)"
+  },
+  {
+    "id": "138c9d56",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T02:44:25.106626",
+    "success": true,
+    "duration_sec": 0.26,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_024424.md)"
+  },
+  {
+    "id": "7e0f4e20",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T02:44:25.113173",
+    "success": true,
+    "duration_sec": 0.01,
+    "message": "Integridade: HEALTHY | 19 notas | 0 links quebrados"
+  },
+  {
+    "id": "c9039a19",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T03:14:25.495054",
+    "success": true,
+    "duration_sec": 0.27,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_031425.md)"
+  },
+  {
+    "id": "2a8d4ce6",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T03:44:25.872098",
+    "success": true,
+    "duration_sec": 0.26,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_034425.md)"
+  },
+  {
+    "id": "13a0da3f",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T03:44:25.879400",
+    "success": true,
+    "duration_sec": 0.01,
+    "message": "Integridade: HEALTHY | 21 notas | 0 links quebrados"
+  },
+  {
+    "id": "da49094e",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T04:14:26.281726",
+    "success": true,
+    "duration_sec": 0.28,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_041426.md)"
+  },
+  {
+    "id": "70bc1144",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T04:44:26.651150",
+    "success": true,
+    "duration_sec": 0.25,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_044426.md)"
+  },
+  {
+    "id": "223e33f4",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T04:44:26.659308",
+    "success": true,
+    "duration_sec": 0.01,
+    "message": "Integridade: HEALTHY | 23 notas | 0 links quebrados"
+  },
+  {
+    "id": "b9b1dffb",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T05:14:27.051421",
+    "success": true,
+    "duration_sec": 0.27,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_051426.md)"
+  },
+  {
+    "id": "e9306e88",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T05:44:27.429566",
+    "success": true,
+    "duration_sec": 0.28,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_054427.md)"
+  },
+  {
+    "id": "96995107",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T05:44:27.438410",
+    "success": true,
+    "duration_sec": 0.01,
+    "message": "Integridade: HEALTHY | 25 notas | 0 links quebrados"
+  },
+  {
+    "id": "511714a3",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T06:14:27.824404",
+    "success": true,
+    "duration_sec": 0.28,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_061427.md)"
+  },
+  {
+    "id": "d169e462",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T06:44:28.247282",
+    "success": true,
+    "duration_sec": 0.32,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_064427.md)"
+  },
+  {
+    "id": "f5f5ea04",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T06:44:28.263950",
+    "success": true,
+    "duration_sec": 0.02,
+    "message": "Integridade: HEALTHY | 27 notas | 0 links quebrados"
+  },
+  {
+    "id": "826206d8",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T07:14:28.703642",
+    "success": true,
+    "duration_sec": 0.31,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_071428.md)"
+  },
+  {
+    "id": "b0d3b7be",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T07:44:29.145180",
+    "success": true,
+    "duration_sec": 0.31,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_074428.md)"
+  },
+  {
+    "id": "22f3de97",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T07:44:29.163243",
+    "success": true,
+    "duration_sec": 0.02,
+    "message": "Integridade: HEALTHY | 29 notas | 0 links quebrados"
+  },
+  {
+    "id": "1e075664",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T08:14:29.609575",
+    "success": true,
+    "duration_sec": 0.31,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_081429.md)"
+  },
+  {
+    "id": "2c0b587a",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T08:44:30.034941",
+    "success": true,
+    "duration_sec": 0.31,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_084429.md)"
+  },
+  {
+    "id": "66962177",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T08:44:30.053820",
+    "success": true,
+    "duration_sec": 0.02,
+    "message": "Integridade: HEALTHY | 31 notas | 0 links quebrados"
+  },
+  {
+    "id": "831a89de",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T09:14:30.480994",
+    "success": true,
+    "duration_sec": 0.31,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_091430.md)"
+  },
+  {
+    "id": "f4076b17",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T09:44:30.916661",
+    "success": true,
+    "duration_sec": 0.32,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_094430.md)"
+  },
+  {
+    "id": "a2058829",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T09:44:30.935599",
+    "success": true,
+    "duration_sec": 0.02,
+    "message": "Integridade: HEALTHY | 33 notas | 0 links quebrados"
+  },
+  {
+    "id": "ac3b184e",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T10:14:31.357332",
+    "success": true,
+    "duration_sec": 0.31,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_101431.md)"
+  },
+  {
+    "id": "4876c0e5",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T10:44:31.783926",
+    "success": true,
+    "duration_sec": 0.31,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_104431.md)"
+  },
+  {
+    "id": "860d8a52",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T10:44:31.804972",
+    "success": true,
+    "duration_sec": 0.02,
+    "message": "Integridade: HEALTHY | 35 notas | 0 links quebrados"
+  },
+  {
+    "id": "32f72fdc",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T11:14:32.237423",
+    "success": true,
+    "duration_sec": 0.31,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_111431.md)"
+  },
+  {
+    "id": "abfc0211",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T11:44:32.732410",
+    "success": true,
+    "duration_sec": 0.38,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_114432.md)"
+  },
+  {
+    "id": "16a7ab4c",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T11:44:32.771139",
+    "success": true,
+    "duration_sec": 0.04,
+    "message": "Integridade: HEALTHY | 37 notas | 0 links quebrados"
+  },
+  {
+    "id": "35ef8c0f",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T19:38:01.329101",
+    "success": true,
+    "duration_sec": 2.89,
+    "message": "Status Geral: WARNING | Alertas: 1 (Nota salva em: 01 - Verification/Verificacao_20261107_193758.md)"
+  },
+  {
+    "id": "e1edbdf1",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T19:38:01.352796",
+    "success": true,
+    "duration_sec": 0.02,
+    "message": "Integridade: HEALTHY | 38 notas | 0 links quebrados"
+  },
+  {
+    "id": "9e41bdb0",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T20:08:01.740694",
+    "success": true,
+    "duration_sec": 0.27,
+    "message": "Status Geral: WARNING | Alertas: 1 (Nota salva em: 01 - Verification/Verificacao_20261107_200801.md)"
+  },
+  {
+    "id": "165f012b",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T20:38:02.153838",
+    "success": true,
+    "duration_sec": 0.32,
+    "message": "Status Geral: WARNING | Alertas: 1 (Nota salva em: 01 - Verification/Verificacao_20261107_203801.md)"
+  },
+  {
+    "id": "fbcf2df9",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T20:38:02.178156",
+    "success": true,
+    "duration_sec": 0.02,
+    "message": "Integridade: HEALTHY | 40 notas | 0 links quebrados"
+  },
+  {
+    "id": "17527759",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T21:08:02.562473",
+    "success": true,
+    "duration_sec": 0.28,
+    "message": "Status Geral: WARNING | Alertas: 1 (Nota salva em: 01 - Verification/Verificacao_20261107_210802.md)"
+  }
+]
