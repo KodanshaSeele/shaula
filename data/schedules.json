@@ -8,13 +8,13 @@
     "save_note": false,
     "save_log": true,
     "created_at": "2026-11-06T21:47:22.628931",
-    "last_run": "2026-11-08T13:41:40.027433",
-    "next_run": 1794161500.0274315,
+    "last_run": "2026-11-08T15:12:14.450534",
+    "next_run": 1794166934.4505332,
     "status": "idle",
     "last_result": {
       "success": true,
-      "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_134134.md)",
-      "duration_sec": 5.72
+      "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_151207.md)",
+      "duration_sec": 6.97
     }
   },
   {
@@ -25,13 +25,13 @@
     "enabled": true,
     "save_note": false,
     "created_at": "2026-11-06T21:47:22.628939",
-    "last_run": "2026-11-08T13:41:29.305221",
-    "next_run": 1794163289.3052182,
+    "last_run": "2026-11-08T14:41:37.172392",
+    "next_run": 1794166897.17239,
     "status": "idle",
     "last_result": {
       "success": true,
       "message": "Integridade: WARNING | 3139 notas | 383 links quebrados",
-      "duration_sec": 5.47
+      "duration_sec": 6.57
     }
   },
   {
