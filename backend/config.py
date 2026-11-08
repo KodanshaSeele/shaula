@@ -17,6 +17,8 @@ NASH_VAULT_PATH = NASH_PROFILE_PATH / "vault"
 VAULT_PATH = Path(os.environ.get("SHAULA_VAULT_PATH", BASE_DIR / "vault")).resolve()
 AUX_VAULT_PATH = Path(os.environ.get("SHAULA_AUX_VAULT_PATH", NASH_VAULT_PATH if NASH_VAULT_PATH.exists() else BASE_DIR / "aux_vault")).resolve()
 DATA_DIR = Path(os.environ.get("SHAULA_DATA_PATH", BASE_DIR / "data")).resolve()
+LOGS_DIR = Path(os.environ.get("SHAULA_LOGS_PATH", BASE_DIR / "logs")).resolve()
+VERIFICATION_LOGS_DIR = LOGS_DIR / "verification"
 
 STATIC_DIR = BASE_DIR / "frontend" / "static"
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -26,6 +28,11 @@ SCHEDULES_FILE = DATA_DIR / "schedules.json"
 HISTORY_FILE = DATA_DIR / "history.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 BACKUPS_DIR = VAULT_PATH / ".backups"
+
+# Parâmetros de Retenção Inteligente de Logs
+MAX_LOG_FILES = int(os.environ.get("SHAULA_MAX_LOG_FILES", 30))
+MAX_LOG_AGE_DAYS = int(os.environ.get("SHAULA_MAX_LOG_AGE_DAYS", 3))
+MAX_LOG_SIZE_MB = int(os.environ.get("SHAULA_MAX_LOG_SIZE_MB", 10))
 
 HOST = os.environ.get("SHAULA_HOST", "0.0.0.0")
 PORT = int(os.environ.get("SHAULA_PORT", 5000))
@@ -38,3 +45,5 @@ BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
 VAULT_PATH.mkdir(parents=True, exist_ok=True)
 AUX_VAULT_PATH.mkdir(parents=True, exist_ok=True)
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+VERIFICATION_LOGS_DIR.mkdir(parents=True, exist_ok=True)

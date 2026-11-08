@@ -247,12 +247,36 @@ async def get_telemetry():
 
 
 @app.post("/api/verification/run")
-async def run_verification(save_note: bool = Body(True, embed=True)):
+async def run_verification(save_note: bool = Body(False, embed=True), save_log: bool = Body(True, embed=True)):
     try:
-        result = verifier.run_full_verification(save_report_to_vault=save_note)
+        result = verifier.run_full_verification(save_log=save_log, save_report_to_vault=save_note)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao executar verificação: {str(e)}")
+
+
+@app.get("/api/verification/logs")
+async def list_verification_logs(limit: int = Query(50)):
+    return verifier.list_logs(limit=limit)
+
+
+@app.get("/api/verification/logs/{filename}")
+async def get_verification_log(filename: str):
+    try:
+        content = verifier.get_log_content(filename)
+        return {"filename": filename, "content": content}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Arquivo de log não encontrado.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/verification/logs/cleanup")
+async def cleanup_verification_logs():
+    try:
+        return verifier.cleanup_logs()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao executar limpeza de logs: {str(e)}")
 
 
 # --- ROTAS DE AGENDAMENTO (SCHEDULER) ---

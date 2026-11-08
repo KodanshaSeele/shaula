@@ -10,8 +10,12 @@ import psutil
 import socket
 import subprocess
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, Any, List, Optional
-from .config import VAULT_PATH
+from .config import (
+    VAULT_PATH, LOGS_DIR, VERIFICATION_LOGS_DIR,
+    MAX_LOG_FILES, MAX_LOG_AGE_DAYS, MAX_LOG_SIZE_MB
+)
 from .vault import vault_mgr
 
 
@@ -168,8 +172,154 @@ class SystemVerifier:
 
         return services
 
-    def run_full_verification(self, save_report_to_vault: bool = True) -> Dict[str, Any]:
-        """Executa verificação determinística e gera documento Markdown formal."""
+    def sweep_legacy_vault_logs(self) -> int:
+        """Migra notas de verificação legadas para fora do vault para preservar a pureza da base de conhecimento."""
+        vault_verif = VAULT_PATH / "01 - Verification"
+        if not vault_verif.exists():
+            return 0
+        moved = 0
+        for f in vault_verif.glob("Verificacao_*.md"):
+            dest = VERIFICATION_LOGS_DIR / f.name
+            try:
+                shutil.move(str(f), str(dest))
+                moved += 1
+            except Exception:
+                pass
+        return moved
+
+    def save_report_to_logs(self, report_data: Dict[str, Any], file_ts: str) -> str:
+        """Salva o relatório na pasta exclusiva de logs fora do vault e executa o ciclo de limpeza inteligente."""
+        report_md = self._render_report_markdown(report_data)
+        log_file = VERIFICATION_LOGS_DIR / f"Verificacao_{file_ts}.md"
+        log_file.write_text(report_md, encoding="utf-8")
+
+        # Acionar ciclo de limpeza inteligente após a gravação
+        self.cleanup_logs()
+        return f"logs/verification/{log_file.name}"
+
+    def cleanup_logs(self) -> Dict[str, Any]:
+        """
+        Sistema Inteligente de Limpeza de Logs:
+        1. Migra qualquer relatório residual de dentro do vault
+        2. Aplica retenção por tempo (idade máxima em dias) com preservação prioritária de incidentes (WARNING/CRITICAL)
+        3. Aplica teto de quantidade total de arquivos (MAX_LOG_FILES)
+        4. Aplica teto de volume em disco (MAX_LOG_SIZE_MB)
+        """
+        self.sweep_legacy_vault_logs()
+
+        now = datetime.now()
+        purged = []
+        files_info = []
+
+        for p in VERIFICATION_LOGS_DIR.glob("Verificacao_*.md"):
+            try:
+                stat = p.stat()
+                mtime = datetime.fromtimestamp(stat.st_mtime)
+                size_kb = stat.st_size / 1024
+
+                # Inspecionar status de severidade no cabeçalho
+                status = "OPTIMAL"
+                try:
+                    head = p.read_text(encoding="utf-8", errors="ignore")[:300]
+                    if "CRITICAL" in head:
+                        status = "CRITICAL"
+                    elif "WARNING" in head:
+                        status = "WARNING"
+                except Exception:
+                    pass
+
+                files_info.append({
+                    "path": p,
+                    "mtime": mtime,
+                    "size_kb": size_kb,
+                    "status": status,
+                    "name": p.name
+                })
+            except Exception:
+                continue
+
+        # 1. Filtro de Idade (logs normais expiram em MAX_LOG_AGE_DAYS; incidentes ganham retenção estendida 3x)
+        remaining = []
+        for info in files_info:
+            age_days = (now - info["mtime"]).total_seconds() / 86400.0
+            threshold_days = MAX_LOG_AGE_DAYS if info["status"] == "OPTIMAL" else (MAX_LOG_AGE_DAYS * 3)
+            if age_days > threshold_days:
+                try:
+                    info["path"].unlink(missing_ok=True)
+                    purged.append(info["name"])
+                except Exception:
+                    pass
+            else:
+                remaining.append(info)
+
+        # 2. Filtro de Quantidade Máxima (se exceder MAX_LOG_FILES, remove os normais mais antigos primeiro)
+        if len(remaining) > MAX_LOG_FILES:
+            remaining.sort(key=lambda x: (x["status"] != "OPTIMAL", x["mtime"]))
+            excess = len(remaining) - MAX_LOG_FILES
+            to_delete = remaining[:excess]
+            remaining = remaining[excess:]
+            for info in to_delete:
+                try:
+                    info["path"].unlink(missing_ok=True)
+                    purged.append(info["name"])
+                except Exception:
+                    pass
+
+        # 3. Filtro de Volume Total em Disco (MAX_LOG_SIZE_MB)
+        total_kb = sum(x["size_kb"] for x in remaining)
+        max_kb = MAX_LOG_SIZE_MB * 1024
+        if total_kb > max_kb:
+            remaining.sort(key=lambda x: (x["status"] != "OPTIMAL", x["mtime"]))
+            while remaining and total_kb > max_kb:
+                pop_item = remaining.pop(0)
+                try:
+                    pop_item["path"].unlink(missing_ok=True)
+                    purged.append(pop_item["name"])
+                    total_kb -= pop_item["size_kb"]
+                except Exception:
+                    break
+
+        return {
+            "purged_count": len(purged),
+            "retained_count": len(remaining),
+            "total_size_kb": round(total_kb, 2),
+            "purged_files": purged
+        }
+
+    def list_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Lista os logs de verificação disponíveis na pasta exclusiva de logs."""
+        logs = []
+        files = sorted(VERIFICATION_LOGS_DIR.glob("Verificacao_*.md"), key=lambda x: x.stat().st_mtime, reverse=True)[:limit]
+        for p in files:
+            try:
+                stat = p.stat()
+                content = p.read_text(encoding="utf-8", errors="replace")[:350]
+                status = "OPTIMAL"
+                if "status: CRITICAL" in content or "CRITICAL" in content:
+                    status = "CRITICAL"
+                elif "status: WARNING" in content or "WARNING" in content:
+                    status = "WARNING"
+                logs.append({
+                    "filename": p.name,
+                    "path": f"logs/verification/{p.name}",
+                    "size_bytes": stat.st_size,
+                    "mtime": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    "status": status
+                })
+            except Exception:
+                continue
+        return logs
+
+    def get_log_content(self, filename: str) -> str:
+        """Lê o conteúdo de um log com salvaguarda estrita contra path traversal."""
+        clean_name = Path(filename).name
+        target = (VERIFICATION_LOGS_DIR / clean_name).resolve()
+        if not str(target).startswith(str(VERIFICATION_LOGS_DIR)) or not target.is_file():
+            raise FileNotFoundError(f"Log não encontrado: {filename}")
+        return target.read_text(encoding="utf-8", errors="replace")
+
+    def run_full_verification(self, save_log: bool = True, save_report_to_vault: bool = False) -> Dict[str, Any]:
+        """Executa verificação determinística e gera documento de log fora do vault."""
         timestamp = datetime.now()
         ts_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
         file_ts = timestamp.strftime("%Y%m%d_%H%M%S")
@@ -201,12 +351,15 @@ class SystemVerifier:
         }
 
         saved_path = None
-        if save_report_to_vault:
+        if save_log:
+            saved_path = self.save_report_to_logs(report_data, file_ts)
+        elif save_report_to_vault:
             report_md = self._render_report_markdown(report_data)
             rel_file = f"01 - Verification/Verificacao_{file_ts}.md"
             vault_mgr.create_note(rel_file, f"Verificação {ts_str}", report_md)
             saved_path = rel_file
 
+        report_data["saved_log_path"] = saved_path
         report_data["saved_note_path"] = saved_path
         return report_data
 

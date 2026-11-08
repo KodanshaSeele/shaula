@@ -22,7 +22,8 @@ DEFAULT_JOBS = [
         "action": "system_verification",
         "interval_minutes": 30,
         "enabled": True,
-        "save_note": True,
+        "save_note": False,
+        "save_log": True,
         "created_at": datetime.now().isoformat(),
         "last_run": None,
         "next_run": None,
@@ -147,11 +148,10 @@ class TaskScheduler:
 
         try:
             if action == "system_verification":
-                save_note = job.get("save_note", True)
-                res = verifier.run_full_verification(save_report_to_vault=save_note)
+                res = verifier.run_full_verification(save_log=True, save_report_to_vault=False)
                 success = True
-                note_info = f" (Nota salva em: {res.get('saved_note_path')})" if res.get('saved_note_path') else ""
-                output_msg = f"Status Geral: {res.get('overall_status')} | Alertas: {len(res.get('alerts', []))}{note_info}"
+                log_info = f" (Log arquivado em: {res.get('saved_log_path')})" if res.get('saved_log_path') else ""
+                output_msg = f"Status Geral: {res.get('overall_status')} | Alertas: {len(res.get('alerts', []))}{log_info}"
 
             elif action == "vault_integrity":
                 res = vault_mgr.verify_vault_integrity()

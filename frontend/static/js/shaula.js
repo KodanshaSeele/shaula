@@ -678,20 +678,20 @@ async function triggerFullVerification() {
   const btn = document.getElementById('btnRunVerification');
   const box = document.getElementById('verificationResultBox');
   if (btn) btn.disabled = true;
-  box.innerHTML = `<div class="stat-card" style="border-left:4px solid var(--accent-purple);">Executando verificação determinística e registrando no Vault...</div>`;
+  box.innerHTML = `<div class="stat-card" style="border-left:4px solid var(--accent-purple);">Executando verificação determinística e registrando em logs...</div>`;
 
   try {
     const res = await fetch('/api/verification/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ save_note: true })
+      body: JSON.stringify({ save_note: false, save_log: true })
     });
     if (!res.ok) throw new Error('Falha na requisição');
     const data = await res.json();
 
-    const noteLink = data.saved_note_path ? `
-      <div style="margin-top:10px;">
-        📄 Relatório salvo no Vault: <a href="javascript:void(0)" class="wikilink" onclick="openNote('${data.saved_note_path}')">${data.saved_note_path}</a>
+    const logLink = (data.saved_log_path || data.saved_note_path) ? `
+      <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+        📋 Registro arquivado na pasta de logs: <code style="color:var(--text-accent);">${data.saved_log_path || data.saved_note_path}</code>
       </div>
     ` : '';
 
@@ -704,10 +704,10 @@ async function triggerFullVerification() {
         <div style="margin-top:8px; font-size:13px; color:var(--text-secondary);">
           ${data.alerts.length > 0 ? data.alerts.map(a => `<div>⚠️ ${a}</div>`).join('') : '<div>✅ Todos os parâmetros de telemetria e integridade estão conformes.</div>'}
         </div>
-        ${noteLink}
+        ${logLink}
       </div>
     `;
-    showToast('Verificação concluída com sucesso!', 'success');
+    showToast('Verificação concluída e registrada nos logs!', 'success');
     loadVaultTree();
   } catch (err) {
     box.innerHTML = `<div class="stat-card" style="border-left:4px solid var(--status-red); color:var(--status-red);">Erro: ${err.message}</div>`;

@@ -22,3 +22,8 @@ htmlcov/
 *.tmp
 *.bak
 .hermes-update-in-progress.lock
+
+# Logs
+logs/
+logs/*
+!logs/.gitkeep
