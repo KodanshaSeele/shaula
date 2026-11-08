@@ -418,5 +418,25 @@
     "success": true,
     "duration_sec": 0.28,
     "message": "Status Geral: WARNING | Alertas: 1 (Nota salva em: 01 - Verification/Verificacao_20261107_210802.md)"
+  },
+  {
+    "id": "b6f83f3a",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-07T21:41:07.329441",
+    "success": true,
+    "duration_sec": 0.33,
+    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_214106.md)"
+  },
+  {
+    "id": "da2fd9cd",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-07T21:41:07.369125",
+    "success": true,
+    "duration_sec": 0.03,
+    "message": "Integridade: HEALTHY | 42 notas | 0 links quebrados"
   }
 ]

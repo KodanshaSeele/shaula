@@ -17,9 +17,9 @@ from .config import SETTINGS_FILE, ADMIN_PASSWORD, SECRET_KEY, VAULT_PATH, AUX_V
 
 DEFAULT_SETTINGS = {
     "admin_password": ADMIN_PASSWORD,
-    "aux_vault_enabled": False,
+    "aux_vault_enabled": True,
     "aux_vault_path": str(AUX_VAULT_PATH),
-    "aux_sync_mode": "import_only",  # 'import_only', 'export_only', 'bidirectional'
+    "aux_sync_mode": "bidirectional",  # 'import_only', 'export_only', 'bidirectional'
     "auto_sync_interval_min": 0,
     "last_sync": None
 }

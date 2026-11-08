@@ -1513,7 +1513,7 @@ async function updateAdminPassword() {
 let hermesChatHistory = [
   {
     role: 'assistant',
-    text: 'Olá! Sou a **Operadora do Vault Shaula**, centro de comando operacional e guardiã do conhecimento. Estou ciente e conectada ao **Vault Principal** exclusivo (`./vault`) e ao **Vault Auxiliar** (`./aux_vault`).\n\nTelemetria e seriais do host sincronizados. Posso cruzar especificações de ativos, auditar links quebrados, sugerir categorização de documentos pela literatura PKM ou processar dados de hardware. Como posso atuar no ecossistema de Shaula agora?'
+    text: 'Olá! Sou **Nashetanea (Nash)**, operando no centro de comando Shaula com o perfil oficial Hermes e acesso integrado ao **Vault Shaula** e ao meu **Vault canônico de Nashetanea**.\n\nTelemetria e seriais do host sincronizados. Posso cruzar especificações de ativos, auditar links, categorizar documentos pela literatura PKM e consultar o conhecimento de ambos os cofres. Como posso ajudar agora?'
   }
 ];
 
@@ -2092,11 +2092,11 @@ async function renderHermesView() {
           <div style="font-size:28px;">🤖</div>
           <div>
             <h2 style="color:#fff; font-size:18px; font-weight:600; display:flex; align-items:center; gap:8px;">
-              Operadora do Vault Shaula (Agente Hermes)
+              Operadora Hermes (Perfil Nashetanea)
               <span class="pill-badge" id="hermesBadge" style="font-size:10px; background:rgba(124, 58, 237, 0.2); color:var(--text-accent);">Conectando...</span>
             </h2>
             <p style="color:var(--text-muted); font-size:12px;">
-              Inteligência Artificial Operadora do Shaula com total domínio do <strong>Vault Principal</strong> (<code>./vault</code>) e do <strong>Vault Auxiliar</strong> (<code>./aux_vault</code>).
+              Inteligência Artificial Nashetanea (Hermes) com total domínio do <strong>Vault Principal</strong> (<code>./vault</code>) e do <strong>Vault de Nashetanea</strong>.
             </p>
           </div>
         </div>
@@ -2235,7 +2235,7 @@ function clearHermesChat() {
   hermesChatHistory = [
     {
       role: 'assistant',
-      text: 'Conversa reiniciada. Sou a **Operadora do Vault Shaula**, com total integração ao **Vault Principal** (`./vault`) e ao **Vault Auxiliar** (`./aux_vault`). Em que posso atuar nas operações do sistema agora?'
+      text: 'Conversa reiniciada. Sou **Nashetanea (Nash)**, com total integração ao **Vault Shaula** e ao **Vault de Nashetanea**. Em que posso atuar nas operações do sistema agora?'
     }
   ];
   renderHermesChatHistory();

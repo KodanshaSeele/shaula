@@ -22,7 +22,9 @@ services:
     volumes:
       # Vault Exclusivo do Shaula persistido no host
       - ./vault:/app/vault
-      # Vault Auxiliar interoperável montado no container
-      - ./aux_vault:/app/aux_vault
+      # Vault de Nashetanea montado como cofre auxiliar
+      - /home/kodansha/.hermes/profiles/nash/vault:/app/aux_vault
+      # Perfil Hermes de Nashetanea montado para credenciais e configurações
+      - /home/kodansha/.hermes/profiles/nash:/host_hermes/profiles/nash:ro
       # Dados, configurações e agendamentos persistidos
       - ./data:/app/data

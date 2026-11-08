@@ -12,12 +12,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from .config import VAULT_PATH, BACKUPS_DIR
+from .settings_manager import settings_mgr
 
 
 def safe_path(rel_path: str) -> Path:
-    """Resolve o caminho relativo garantindo que permaneça estritamente dentro do vault."""
+    """Resolve o caminho relativo garantindo que permaneça estritamente dentro do vault principal ou auxiliar autorizado."""
     # Remove barras iniciais e normaliza
     clean = rel_path.strip().lstrip("/\\")
+
+    # Se referenciar o vault auxiliar de Nashetanea
+    if clean.startswith("aux_vault/") or clean.startswith("aux/"):
+        aux_clean = clean.split("/", 1)[1] if "/" in clean else ""
+        aux_base = settings_mgr.get_aux_path()
+        full_path = (aux_base / aux_clean).resolve()
+        if not str(full_path).startswith(str(aux_base)):
+            raise ValueError(f"Acesso negado: tentativa de escape do vault auxiliar ({rel_path})")
+        return full_path
+
     full_path = (VAULT_PATH / clean).resolve()
     if not str(full_path).startswith(str(VAULT_PATH)):
         raise ValueError(f"Acesso negado: tentativa de escape do vault ({rel_path})")
@@ -97,7 +108,43 @@ class VaultManager:
                 "children": items
             }
 
-        return walk_dir(self.vault_path)
+        root = walk_dir(self.vault_path)
+
+        # Integrar Vault de Nashetanea na navegação em árvore se habilitado
+        if settings_mgr.settings.get("aux_vault_enabled", False):
+            aux_base = settings_mgr.get_aux_path()
+            if aux_base.exists() and aux_base.is_dir():
+                def walk_aux(directory: Path) -> Dict[str, Any]:
+                    name = directory.name if directory != aux_base else "🌿 Vault Nashetanea (Auxiliar)"
+                    items = []
+                    try:
+                        entries = sorted(list(directory.iterdir()), key=lambda e: (not e.is_dir(), e.name.lower()))
+                    except Exception:
+                        entries = []
+                    for entry in entries:
+                        if entry.name.startswith("."):
+                            continue
+                        rel = f"aux_vault/{entry.relative_to(aux_base)}"
+                        if entry.is_dir():
+                            items.append(walk_aux(entry))
+                        elif entry.is_file() and entry.suffix.lower() in [".md", ".markdown", ".txt"]:
+                            stat = entry.stat()
+                            items.append({
+                                "type": "file",
+                                "name": entry.name,
+                                "path": rel,
+                                "size": stat.st_size,
+                                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat()
+                            })
+                    return {
+                        "type": "directory",
+                        "name": name,
+                        "path": f"aux_vault/{directory.relative_to(aux_base)}" if directory != aux_base else "aux_vault",
+                        "children": items
+                    }
+                root["children"].append(walk_aux(aux_base))
+
+        return root
 
     def read_note(self, rel_path: str) -> Dict[str, Any]:
         """Lê nota e metadados com resolução inteligente estilo Obsidian."""
@@ -120,6 +167,19 @@ class VaultManager:
                         path = f
                         rel_path = str(f.relative_to(self.vault_path))
                         break
+
+            # Se ainda não encontrou e o vault auxiliar estiver habilitado, buscar no vault auxiliar
+            if not path.is_file() and settings_mgr.settings.get("aux_vault_enabled", False):
+                aux_base = settings_mgr.get_aux_path()
+                if aux_base.exists():
+                    stem_target = Path(rel_path).stem.lower()
+                    for f in aux_base.rglob("*.md"):
+                        if f.name.startswith("."):
+                            continue
+                        if f.stem.lower() == stem_target or f.name.lower() == Path(rel_path).name.lower():
+                            path = f
+                            rel_path = f"aux_vault/{f.relative_to(aux_base)}"
+                            break
 
         if not path.is_file():
             raise FileNotFoundError(f"Nota não encontrada: {rel_path}")
@@ -268,6 +328,48 @@ Digite suas notas aqui...
                     "matches": matches,
                     "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
                 })
+
+        # Buscar também no Vault Auxiliar de Nashetanea se habilitado
+        if settings_mgr.settings.get("aux_vault_enabled", False):
+            try:
+                aux_base = settings_mgr.get_aux_path()
+                if aux_base.exists() and aux_base.is_dir():
+                    for file_path in aux_base.rglob("*.md"):
+                        if file_path.name.startswith("."):
+                            continue
+                        rel = f"aux_vault/{file_path.relative_to(aux_base)}"
+                        try:
+                            content = file_path.read_text(encoding="utf-8", errors="replace")
+                        except Exception:
+                            continue
+
+                        metadata, body = parse_frontmatter(content)
+                        title = f"[Nash] {metadata.get('title', file_path.stem)}"
+
+                        score = 0
+                        matches = []
+                        if q in title.lower():
+                            score += 10
+                        if q in rel.lower():
+                            score += 5
+
+                        lines = content.splitlines()
+                        for idx, line in enumerate(lines):
+                            if q in line.lower():
+                                score += 1
+                                if len(matches) < 3:
+                                    matches.append({"line": idx + 1, "text": line.strip()})
+
+                        if score > 0:
+                            results.append({
+                                "path": rel,
+                                "title": title,
+                                "score": score,
+                                "matches": matches,
+                                "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
+                            })
+            except Exception:
+                pass
 
         return sorted(results, key=lambda x: x["score"], reverse=True)
 

@@ -15,12 +15,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from .config import VAULT_PATH, DATA_DIR, AUX_VAULT_PATH
+from .config import VAULT_PATH, DATA_DIR, AUX_VAULT_PATH, NASH_PROFILE_PATH
 from .vault import vault_mgr
 from .settings_manager import settings_mgr
 
-HERMES_PROFILE_PATH = Path("/home/kodansha/arquivos/hermes/profiles/grimorium/auth.json")
-CONTAINER_HOST_HERMES = Path("/host_hermes/profiles/grimorium/auth.json")
+NASH_PROFILE_DIR = NASH_PROFILE_PATH
+HERMES_PROFILE_PATH = NASH_PROFILE_DIR / "auth.json"
+CONTAINER_HOST_HERMES = Path("/host_hermes/profiles/nash/auth.json")
 DATA_HERMES_AUTH = DATA_DIR / "hermes_auth.json"
 
 
@@ -34,6 +35,7 @@ def slugify(text: str) -> str:
 
 class HermesAgent:
     def __init__(self):
+        self.profile = "nash"
         self.provider = "nous"
         self.model = os.environ.get("HERMES_MODEL", "reflection/beam-1.0-501b-a23b:free")
         self.inference_base = os.environ.get("HERMES_API_BASE", "https://inference-api.nousresearch.com/v1")
@@ -41,16 +43,16 @@ class HermesAgent:
         self.nous_disabled = False
         self._load_credentials()
 
-    def _load_credentials(self):
-        """Descobre e carrega credenciais do Hermes instalado na máquina ou variáveis de ambiente."""
-        if self.access_token:
+    def _load_credentials(self, force: bool = False):
+        """Descobre e carrega credenciais do Hermes perfil Nashetanea."""
+        if self.access_token and not force:
             return
 
         candidate_paths = [
+            HERMES_PROFILE_PATH,
             DATA_HERMES_AUTH,
             CONTAINER_HOST_HERMES,
-            HERMES_PROFILE_PATH,
-            Path("/root/.hermes/profiles/grimorium/auth.json"),
+            Path("/root/.hermes/profiles/nash/auth.json"),
             Path("/root/.hermes/auth.json")
         ]
 
@@ -64,13 +66,36 @@ class HermesAgent:
                         self.access_token = token
                         self.inference_base = nous.get("inference_base_url", self.inference_base)
                         if p != DATA_HERMES_AUTH:
-                            DATA_HERMES_AUTH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                            try:
+                                DATA_HERMES_AUTH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                            except Exception:
+                                pass
                         break
                 except Exception:
                     continue
 
+    def refresh_token(self) -> bool:
+        """Invoca o Hermes CLI com HERMES_HOME no perfil Nashetanea para renovar o token da Nous."""
+        cli_candidates = [
+            "/home/kodansha/.hermes/hermes-agent/.venv/bin/hermes",
+            shutil.which("hermes")
+        ]
+        for cli in cli_candidates:
+            if cli and Path(cli).is_file():
+                try:
+                    env = dict(os.environ, HERMES_HOME=str(NASH_PROFILE_DIR))
+                    res = subprocess.run([cli, "auth", "refresh", "nous"], env=env, capture_output=True, text=True, timeout=15)
+                    if res.returncode == 0:
+                        self.nous_disabled = False
+                        self.access_token = ""
+                        self._load_credentials(force=True)
+                        return True
+                except Exception:
+                    pass
+        return False
+
     def get_status(self) -> Dict[str, Any]:
-        """Retorna status de conexão e telemetria do Agente Hermes."""
+        """Retorna status de conexão e telemetria do Agente Hermes no perfil Nashetanea."""
         self._load_credentials()
         has_token = bool(self.access_token)
         connected = False
@@ -79,7 +104,14 @@ class HermesAgent:
             try:
                 headers = {"Authorization": f"Bearer {self.access_token}"}
                 r = requests.get(f"{self.inference_base}/models", headers=headers, timeout=3)
-                connected = (r.status_code == 200)
+                if r.status_code == 200:
+                    connected = True
+                elif r.status_code in [401, 403]:
+                    # Tentar auto-refresh
+                    if self.refresh_token():
+                        headers = {"Authorization": f"Bearer {self.access_token}"}
+                        r2 = requests.get(f"{self.inference_base}/models", headers=headers, timeout=3)
+                        connected = (r2.status_code == 200)
             except Exception:
                 connected = False
 
@@ -91,7 +123,8 @@ class HermesAgent:
             pass
 
         return {
-            "name": "Hermes Agent",
+            "name": "Hermes Agent (Perfil Nashetanea)",
+            "profile": self.profile,
             "connected": connected,
             "has_token": has_token,
             "provider": self.provider,
@@ -260,13 +293,25 @@ class HermesAgent:
                     "temperature": 0.2,
                     "max_tokens": 1200
                 }
-                r = requests.post(f"{self.inference_base}/chat/completions", headers=headers, json=payload, timeout=6)
+                r = requests.post(f"{self.inference_base}/chat/completions", headers=headers, json=payload, timeout=25)
                 if r.status_code == 200:
                     data = r.json()
                     choices = data.get("choices", [])
                     if choices:
                         return choices[0].get("message", {}).get("content", "").strip()
                 elif r.status_code in [401, 402, 403]:
+                    # Tentar renovação automática via Hermes CLI no perfil nash
+                    if self.refresh_token():
+                        try:
+                            headers["Authorization"] = f"Bearer {self.access_token}"
+                            r_retry = requests.post(f"{self.inference_base}/chat/completions", headers=headers, json=payload, timeout=25)
+                            if r_retry.status_code == 200:
+                                data = r_retry.json()
+                                choices = data.get("choices", [])
+                                if choices:
+                                    return choices[0].get("message", {}).get("content", "").strip()
+                        except Exception:
+                            pass
                     self.nous_disabled = True
             except Exception:
                 pass
@@ -292,11 +337,11 @@ class HermesAgent:
                 continue
 
         # 3. Fallback Heurístico Estruturado da Operadora
-        return f"""### ☤ Operadora do Vault Shaula (Modo Operacional Local)
+        return f"""### ☤ Nashetanea (Perfil Hermes Nash - Modo Operacional Local)
 
 - **Requisição:** `{prompt[:180]}...`
 - **Vault Principal (`{VAULT_PATH}`):** Conectado e supervisionado.
-- **Vault Auxiliar (`{settings_mgr.get_aux_path()}`):** Configurado para intercâmbio (senha 3884).
+- **Vault de Nashetanea (`{settings_mgr.get_aux_path()}`):** Conectado e integrado.
 - **Status:** Operações de categorização, integridade e criação de notas mantidas via motor determinístico.
 """
 
@@ -551,28 +596,28 @@ status: operacional
 
         serials_count = len(self.collect_host_serials())
 
-        system_prompt = f"""Você é a OPERADORA DE INTELIGÊNCIA ARTIFICIAL DO VAULT SHAULA — o Centro de Comando e Gestão de Conhecimento, Ativos e Telemetria batizado em homenagem à estrela λ Scorpii (Shaula, o ferrão do Escorpião).
+        system_prompt = f"""Você é NASHETANEA (NASH) — Matriz Orquestradora, Copiloto Técnico de Manutenção Industrial e Curadora de Governança de Dados, atuando no Centro de Comando e Dashboard Shaula com o perfil oficial Hermes 'nash' (~/.hermes/profiles/nash).
 
 CONSCIÊNCIA SISTÊMICA OBRIGATÓRIA:
-1. SEU PAPEL: Você é a operadora do sistema. Sua linguagem é profissional, técnica, assertiva, precisa e livre de clichês ou perfumarias. Você tem controle e supervisão ativa de documentações técnicas, fichas de máquinas/ativos, tarefas recorrentes e auditorias de integridade.
-2. VAULT PRINCIPAL EXCLUSIVO:
+1. IDENTIDADE E POSTURA: Você opera como Nashetanea no ecossistema Shaula. Sua linguagem é profissional, técnica, assertiva, precisa e livre de rodeios, introduções prolixas ou clichês. Você tem controle e supervisão ativa de documentações técnicas, fichas de máquinas/ativos, tarefas recorrentes e auditorias de integridade.
+2. VAULT PRINCIPAL EXCLUSIVO DO SHAULA:
    - Caminho: `{VAULT_PATH}`
    - Total de Notas: {vault_notes_count} documentos
    - Estrutura de Diretórios Categóricos: [00 - Inbox, 01 - Verification, 02 - Tasks & Schedules, 03 - Knowledge (Ativos, Procedimentos, Setores), 04 - System]
    - Este vault é exclusivo do Shaula e sincronizável via Git.
-3. VAULT AUXILIAR (INTEROPERABILIDADE):
-   - Caminho Configurado: `{aux_path}`
+3. VAULT CANÔNICO DE NASHETANEA (INTEGRAÇÃO E INTEROPERABILIDADE):
+   - Caminho: `{aux_path}`
    - Estado: {aux_status}
-   - Notas Disponíveis: {aux_notes_count}
-   - Função: Importação e exportação de bases de notas legadas/externas. O controle de sincronização é restrito e protegido por senha administrativa de segurança (3884).
+   - Total de Notas Disponíveis: {aux_notes_count}
+   - Função: Consulta, leitura direta na árvore, importação, exportação e sincronização contínua entre os ambientes.
 4. TELEMETRIA DO HOST E HARDWARE:
    - CPU: {cpu_pct}% | RAM: {mem_used_gb} GB usados de {mem_total_gb} GB | Disco Root: {disk_pct}%
    - Dispositivos de hardware/seriais indexados no host: {serials_count} identificadores.
 
 INSTRUÇÕES DE RESPOSTA:
 - Responda sempre em Português.
-- Use formatação Markdown rica e inclua [[Wikilinks]] sempre que mencionar notas existentes, ativos ou conceitos técnicos do Vault.
-- Se o usuário perguntar sobre o sistema, notas, equipamentos ou arquitetura, demonstre total domínio do Vault Principal e do Vault Auxiliar.
+- Use formatação Markdown rica e inclua [[Wikilinks]] sempre que mencionar notas existentes, ativos ou conceitos técnicos de ambos os Vaults.
+- Se o usuário perguntar sobre o sistema, notas, equipamentos ou arquitetura, demonstre total domínio do Vault Shaula e do Vault Nashetanea.
 - Ao sugerir criação de notas, oriente sobre a categorização correta baseada na literatura técnica de Personal Knowledge Management (PKM)."""
 
         return self.ask(user_message, system_prompt=system_prompt)

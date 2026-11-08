@@ -9,9 +9,13 @@ from pathlib import Path
 # Raiz do projeto (tudo encapsulado aqui para sincronização Git)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Caminhos padrão relativos ao repositório
+# Perfil Hermes Nashetanea e Vaults
+NASH_PROFILE_PATH = Path(os.environ.get("HERMES_PROFILE_PATH", "/home/kodansha/.hermes/profiles/nash")).resolve()
+NASH_VAULT_PATH = NASH_PROFILE_PATH / "vault"
+
+# Caminhos padrão relativos ao repositório ou sistema integrado
 VAULT_PATH = Path(os.environ.get("SHAULA_VAULT_PATH", BASE_DIR / "vault")).resolve()
-AUX_VAULT_PATH = Path(os.environ.get("SHAULA_AUX_VAULT_PATH", BASE_DIR / "aux_vault")).resolve()
+AUX_VAULT_PATH = Path(os.environ.get("SHAULA_AUX_VAULT_PATH", NASH_VAULT_PATH if NASH_VAULT_PATH.exists() else BASE_DIR / "aux_vault")).resolve()
 DATA_DIR = Path(os.environ.get("SHAULA_DATA_PATH", BASE_DIR / "data")).resolve()
 
 STATIC_DIR = BASE_DIR / "frontend" / "static"

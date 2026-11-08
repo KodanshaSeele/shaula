@@ -487,6 +487,7 @@ async def upload_images(
             desc_text = f"\n> **Descrição:** {img['description']}\n" if img['description'] else ""
             images_markdown.append(f"### Imagem {i}: {img['original_name']}\n\n![{img['description']}](/assets/{img['filename']})\n{desc_text}\n---")
 
+        joined_images = "\n\n".join(images_markdown)
         note_body = f"""---
 title: "{title}"
 date: "{now_str}"
@@ -504,7 +505,7 @@ total_images: {len(saved_images)}
 
 ---
 
-{"\n\n".join(images_markdown)}
+{joined_images}
 
 *Registro fotográfico catalogado no Vault Shaula.*
 """
