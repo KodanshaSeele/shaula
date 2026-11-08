@@ -1,35 +1,5 @@
 [
   {
-    "id": "9236cc23",
-    "job_id": "job_system_health",
-    "job_name": "Verificação Periódica de Saúde do Sistema",
-    "action": "system_verification",
-    "timestamp": "2026-11-07T00:14:23.162362",
-    "success": true,
-    "duration_sec": 0.26,
-    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_001422.md)"
-  },
-  {
-    "id": "fd469c01",
-    "job_id": "job_system_health",
-    "job_name": "Verificação Periódica de Saúde do Sistema",
-    "action": "system_verification",
-    "timestamp": "2026-11-07T00:44:23.550209",
-    "success": true,
-    "duration_sec": 0.27,
-    "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_004423.md)"
-  },
-  {
-    "id": "6d7674bb",
-    "job_id": "job_vault_integrity",
-    "job_name": "Varredura de Integridade do Vault",
-    "action": "vault_integrity",
-    "timestamp": "2026-11-07T00:44:23.555764",
-    "success": true,
-    "duration_sec": 0.01,
-    "message": "Integridade: HEALTHY | 15 notas | 0 links quebrados"
-  },
-  {
     "id": "f382e506",
     "job_id": "job_system_health",
     "job_name": "Verificação Periódica de Saúde do Sistema",
@@ -998,5 +968,35 @@
     "success": true,
     "duration_sec": 5.12,
     "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_161220.md)"
+  },
+  {
+    "id": "3cc44bf7",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-08T16:41:59.809363",
+    "success": true,
+    "duration_sec": 14.01,
+    "message": "Integridade: WARNING | 3139 notas | 383 links quebrados"
+  },
+  {
+    "id": "bdaa58d5",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-08T16:42:43.900904",
+    "success": true,
+    "duration_sec": 14.08,
+    "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_164229.md)"
+  },
+  {
+    "id": "d194f4a0",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-08T17:12:58.231778",
+    "success": true,
+    "duration_sec": 14.23,
+    "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_171244.md)"
   }
 ]

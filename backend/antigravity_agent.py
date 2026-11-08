@@ -185,18 +185,18 @@ class AntigravityAgent:
             "matches": matches[:8]
         }
 
-    def ask(self, prompt: str, timeout_sec: int = 35) -> str:
-        """Invoca o Antigravity CLI (agy) de forma não-interativa com contexto dos dois Vaults."""
+    def ask(self, prompt: str, timeout_sec: int = 45, add_vault_dirs: bool = False) -> str:
+        """Invoca o Antigravity CLI (agy) de forma não-interativa."""
         if not os.path.exists(self.agy_cli):
             return self._heuristic_fallback(prompt)
 
-        cmd = [
-            self.agy_cli,
-            "--add-dir", str(self.nash_vault),
-            "--add-dir", str(self.shaula_vault),
-            "-p", prompt,
-            "--output-format", "text"
-        ]
+        cmd = [self.agy_cli]
+        if add_vault_dirs:
+            cmd.extend([
+                "--add-dir", str(self.nash_vault),
+                "--add-dir", str(self.shaula_vault),
+            ])
+        cmd.extend(["-p", prompt, "--output-format", "text"])
 
         try:
             res = subprocess.run(
