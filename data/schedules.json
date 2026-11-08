@@ -8,13 +8,13 @@
     "save_note": false,
     "save_log": true,
     "created_at": "2026-11-06T21:47:22.628931",
-    "last_run": "2026-11-07T21:41:07.329139",
-    "next_run": 1794103867.3291385,
+    "last_run": "2026-11-07T22:11:10.468116",
+    "next_run": 1794105670.4681146,
     "status": "idle",
     "last_result": {
       "success": true,
-      "message": "Status Geral: OPTIMAL | Alertas: 0 (Nota salva em: 01 - Verification/Verificacao_20261107_214106.md)",
-      "duration_sec": 0.33
+      "message": "Status Geral: OPTIMAL | Alertas: 0 (Log arquivado em: logs/verification/Verificacao_20261107_221110.md)",
+      "duration_sec": 0.31
     }
   },
   {

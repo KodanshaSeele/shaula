@@ -1510,6 +1510,7 @@ async function updateAdminPassword() {
 
 
 // --- AGENTE HERMES: CHAT & PROCESSAMENTO DE SERIAIS ---
+let currentHermesSessionId = null;
 let hermesChatHistory = [
   {
     role: 'assistant',
@@ -2152,8 +2153,8 @@ async function updateHermesStatusBadge() {
     const data = await res.json();
     const badge = document.getElementById('hermesBadge');
     if (badge) {
-      if (data.connected) {
-        badge.textContent = `✓ ${data.model} (Online)`;
+      if (data.connected || data.native_cli) {
+        badge.textContent = `✓ ${data.model} (Motor Nativo)`;
         badge.style.background = 'rgba(16, 185, 129, 0.15)';
         badge.style.color = 'var(--status-green)';
       } else {
@@ -2171,16 +2172,24 @@ function renderHermesChatHistory() {
 
   box.innerHTML = hermesChatHistory.map((m, idx) => {
     const isUser = m.role === 'user';
-    const parsedText = typeof marked !== 'undefined' ? marked.parse(m.text) : escapeHtml(m.text);
+    const isPending = m.isPending;
+    let parsedText = '';
+    if (isPending) {
+      parsedText = m.text;
+    } else if (typeof marked !== 'undefined') {
+      parsedText = marked.parse(m.text);
+    } else {
+      parsedText = escapeHtml(m.text);
+    }
 
     return `
       <div style="display:flex; gap:12px; align-items:flex-start; ${isUser ? 'flex-direction:row-reverse;' : ''}">
         <div style="width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:${isUser ? 'var(--accent-purple)' : '#2d2d30'}; font-size:16px; flex-shrink:0;">
-          ${isUser ? '👤' : '🤖'}
+          ${isUser ? '👤' : (isPending ? '⏳' : '🤖')}
         </div>
         <div style="max-width:80%; background:${isUser ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)'}; border:1px solid ${isUser ? 'rgba(124, 58, 237, 0.3)' : 'var(--border-color)'}; padding:12px 16px; border-radius:8px; font-size:13.5px; line-height:1.55; color:#f1f5f9;">
           <div class="markdown-body" style="background:transparent; padding:0;">${parsedText}</div>
-          ${!isUser ? `
+          ${(!isUser && !isPending) ? `
             <div style="display:flex; gap:8px; margin-top:10px; border-top:1px solid #333; padding-top:8px;">
               <button class="btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="insertTextIntoActiveEditor(${idx})">📥 Inserir na Nota Ativa</button>
               <button class="btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="createNoteFromHermesResponse(${idx})">📄 Salvar como Nova Nota</button>
@@ -2201,24 +2210,48 @@ async function sendHermesMessage() {
   inp.value = '';
 
   hermesChatHistory.push({ role: 'user', text: message });
+  const pendingIndex = hermesChatHistory.length;
+  hermesChatHistory.push({
+    role: 'assistant',
+    text: '<span class="hermes-thinking-indicator">Nashetanea executando ferramentas nativas e processando raciocínio...</span>',
+    isPending: true
+  });
   renderHermesChatHistory();
 
   const btn = document.getElementById('btnSendHermes');
-  if (btn) btn.disabled = true;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>Executando...</span> ⏳';
+  }
 
   try {
     const res = await fetch('/api/hermes/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: message })
+      body: JSON.stringify({
+        message: message,
+        session_id: currentHermesSessionId
+      })
     });
-    if (!res.ok) throw new Error('Falha na resposta do Hermes');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'Falha na resposta do Hermes');
+    }
     const data = await res.json();
-    hermesChatHistory.push({ role: 'assistant', text: data.reply });
+    if (data.session_id) {
+      currentHermesSessionId = data.session_id;
+    }
+    hermesChatHistory[pendingIndex] = { role: 'assistant', text: data.reply };
   } catch (err) {
-    hermesChatHistory.push({ role: 'assistant', text: `❌ Erro ao consultar o Hermes: ${err.message}` });
+    hermesChatHistory[pendingIndex] = {
+      role: 'assistant',
+      text: `❌ **Erro ao consultar o Hermes:** ${err.message}`
+    };
   } finally {
-    if (btn) btn.disabled = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>Enviar</span> ➔';
+    }
     renderHermesChatHistory();
   }
 }
@@ -2231,15 +2264,22 @@ function promptHermesWithContext(promptText) {
   }
 }
 
-function clearHermesChat() {
+async function clearHermesChat() {
+  try {
+    const res = await fetch('/api/hermes/chat/clear', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      currentHermesSessionId = data.session_id;
+    }
+  } catch (e) {}
   hermesChatHistory = [
     {
       role: 'assistant',
-      text: 'Conversa reiniciada. Sou **Nashetanea (Nash)**, com total integração ao **Vault Shaula** e ao **Vault de Nashetanea**. Em que posso atuar nas operações do sistema agora?'
+      text: 'Conversa reiniciada. Sou **Nashetanea (Nash)**, operando com o motor completo do Hermes e total integração aos Vaults. Em que posso atuar nas operações do sistema agora?'
     }
   ];
   renderHermesChatHistory();
-  showToast('Conversa com a Operadora reiniciada.', 'info');
+  showToast('Sessão com a Operadora Hermes reiniciada.', 'info');
 }
 
 function insertTextIntoActiveEditor(msgIndex) {

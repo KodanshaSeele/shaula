@@ -1024,6 +1024,86 @@ body {
     height: 110px !important;
   }
 
+  /* Hermes Agent Native Tool Invocation Blocks */
+  details.hermes-tool-actions {
+    background: rgba(18, 18, 26, 0.75);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 10px 0 16px 0;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  details.hermes-tool-actions summary {
+    cursor: pointer;
+    color: #c4b5fd;
+    font-weight: 600;
+    user-select: none;
+    outline: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  details.hermes-tool-actions summary::-webkit-details-marker {
+    display: none;
+  }
+
+  details.hermes-tool-actions summary::before {
+    content: "▶";
+    font-size: 10px;
+    display: inline-block;
+    transition: transform 0.2s ease;
+    color: #a78bfa;
+  }
+
+  details.hermes-tool-actions[open] summary::before {
+    transform: rotate(90deg);
+  }
+
+  details.hermes-tool-actions hr {
+    border: 0;
+    border-top: 1px dashed rgba(255, 255, 255, 0.12);
+    margin: 10px 0;
+  }
+
+  details.hermes-tool-actions pre {
+    max-height: 280px;
+    overflow-y: auto;
+    background: #0d1117 !important;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #58a6ff;
+  }
+
+  .hermes-thinking-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #a78bfa;
+    font-style: italic;
+  }
+
+  .hermes-thinking-indicator::after {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #a78bfa;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: hermes-spin 0.8s linear infinite;
+  }
+
+  @keyframes hermes-spin {
+    to { transform: rotate(360deg); }
+  }
+
   /* Hermes Chat View */
   .hermes-chat-box {
     padding: 12px !important;

@@ -117,6 +117,7 @@ class HermesChatRequest(BaseModel):
     message: str
     context: Optional[str] = None
     history: Optional[List[Dict[str, str]]] = None
+    session_id: Optional[str] = None
 
 
 class HermesSerialRequest(BaseModel):
@@ -395,10 +396,24 @@ async def get_hermes_hardware_serials():
 @app.post("/api/hermes/chat")
 async def chat_with_hermes(payload: HermesChatRequest):
     try:
-        reply = hermes_agent.operator_chat(payload.message, payload.history)
-        return {"success": True, "reply": reply}
+        reply = hermes_agent.operator_chat(
+            user_message=payload.message,
+            history=payload.history,
+            session_name=payload.session_id
+        )
+        return {
+            "success": True,
+            "reply": reply,
+            "session_id": hermes_agent.session_name
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/hermes/chat/clear")
+async def clear_hermes_chat():
+    new_session = hermes_agent.reset_session()
+    return {"success": True, "session_id": new_session}
 
 
 @app.post("/api/vault/resolve-link")

@@ -11,6 +11,8 @@ import psutil
 import socket
 import requests
 import subprocess
+import shutil
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -36,6 +38,7 @@ def slugify(text: str) -> str:
 class HermesAgent:
     def __init__(self):
         self.profile = "nash"
+        self.session_name = "shaula_dashboard"
         self.provider = "nous"
         self.model = os.environ.get("HERMES_MODEL", "reflection/beam-1.0-501b-a23b:free")
         self.inference_base = os.environ.get("HERMES_API_BASE", "https://inference-api.nousresearch.com/v1")
@@ -123,7 +126,7 @@ class HermesAgent:
             pass
 
         return {
-            "name": "Hermes Agent (Perfil Nashetanea)",
+            "name": "Hermes Agent (Terminal Nativo - Perfil Nashetanea)",
             "profile": self.profile,
             "connected": connected,
             "has_token": has_token,
@@ -131,7 +134,184 @@ class HermesAgent:
             "model": self.model,
             "inference_base": self.inference_base,
             "ollama_fallback": ollama_active,
-            "host_hardware_serials_indexed": len(self.collect_host_serials())
+            "host_hardware_serials_indexed": len(self.collect_host_serials()),
+            "native_cli": True,
+            "toolsets": ["terminal", "file", "python", "web", "kanban", "memory"]
+        }
+
+    def reset_session(self) -> str:
+        """Reinicia a sessão de conversação gerando novo identificador."""
+        self.session_name = f"shaula_dash_{str(uuid.uuid4())[:8]}"
+        return self.session_name
+
+    def run_native_agent(self, query: str, session_name: Optional[str] = None, timeout_sec: int = 120) -> Dict[str, Any]:
+        """
+        Executa o Agente Hermes nativo com motor completo de ferramentas (terminal, arquivos,
+        python, web, kanban, memória, etc.) sem abrir emulador de terminal no navegador.
+        Reproduz integralmente as capacidades do terminal Hermes sob o perfil de Nashetanea.
+        """
+        cli_candidates = [
+            "/home/kodansha/.hermes/hermes-agent/.venv/bin/hermes",
+            shutil.which("hermes")
+        ]
+        hermes_cli = next((c for c in cli_candidates if c and Path(c).is_file()), None)
+        if not hermes_cli:
+            raise FileNotFoundError("Binário do Hermes Agent CLI não encontrado no sistema.")
+
+        s_name = session_name or self.session_name
+        cmd = [
+            hermes_cli,
+            "chat",
+            "-c", s_name,
+            "--create-if-missing",
+            "--query-file", "-",
+            "--oneshot",
+            "-Q",
+            "--format", "stream-json",
+            "--yolo",
+            "--source", "shaula"
+        ]
+
+        env = dict(os.environ, HERMES_HOME=str(NASH_PROFILE_DIR))
+
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                env=env,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd="/home/kodansha/shaula"
+            )
+            if proc.stdin:
+                proc.stdin.write(query)
+                proc.stdin.close()
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Falha ao iniciar processo do Hermes: {str(e)}",
+                "reply": f"❌ Erro ao iniciar processo Hermes nativo: {str(e)}",
+                "tools": []
+            }
+
+        tools_used = []
+        text_chunks = []
+        result_text = ""
+        captured_session_id = ""
+
+        try:
+            for line in proc.stdout:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ev = json.loads(line)
+                    ev_type = ev.get("type")
+                    if ev_type == "tool_use":
+                        tools_used.append({
+                            "tool": ev.get("name"),
+                            "input": ev.get("input"),
+                            "timestamp": ev.get("timestamp")
+                        })
+                    elif ev_type == "tool_result":
+                        tool_name = ev.get("name")
+                        target_tool = None
+                        for t in reversed(tools_used):
+                            if t.get("tool") == tool_name and "output" not in t:
+                                target_tool = t
+                                break
+                        if not target_tool and tools_used:
+                            target_tool = tools_used[-1]
+                        if target_tool is not None:
+                            target_tool["output"] = ev.get("output")
+                            target_tool["is_error"] = ev.get("is_error", False)
+                            target_tool["duration_ms"] = ev.get("duration_ms", 0)
+                    elif ev_type == "text":
+                        text_chunks.append(ev.get("text", ""))
+                    elif ev_type == "result":
+                        result_text = ev.get("text", "")
+                        captured_session_id = ev.get("session_id", "")
+                except Exception:
+                    pass
+
+            proc.wait(timeout=timeout_sec)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            return {
+                "success": False,
+                "error": f"Execução do Hermes excedeu o timeout de {timeout_sec}s.",
+                "reply": f"⚠️ A execução da tarefa pelo Hermes excedeu o tempo limite ({timeout_sec}s).",
+                "tools": tools_used
+            }
+
+        final_reply = (result_text or "".join(text_chunks)).strip()
+        if not final_reply and proc.returncode != 0:
+            stderr_out = proc.stderr.read()
+            final_reply = f"Erro na execução do Hermes (exit code {proc.returncode}): {stderr_out[:300]}"
+        elif not final_reply and tools_used:
+            final_reply = "Ação concluída com sucesso com as ferramentas executadas acima."
+
+        if captured_session_id:
+            self.session_name = captured_session_id
+
+        # Formatar as execuções de ferramentas para apresentação rica em Markdown no chat
+        formatted_reply = final_reply
+        if tools_used:
+            tool_sections = []
+            for t in tools_used:
+                t_name = t.get("tool", "ferramenta")
+                t_inp = t.get("input", {})
+                if isinstance(t_inp, dict):
+                    inp_items = []
+                    for k, v in t_inp.items():
+                        val_str = str(v).replace("\n", " ")
+                        if len(val_str) > 120:
+                            val_str = val_str[:115] + "..."
+                        inp_items.append(f"**{k}:** `{val_str}`")
+                    inp_str = " | ".join(inp_items) if inp_items else "{}"
+                else:
+                    inp_str = f"`{str(t_inp)}`"
+
+                raw_out = t.get("output", "")
+                display_out = raw_out
+                if isinstance(raw_out, str) and raw_out.strip().startswith("{") and raw_out.strip().endswith("}"):
+                    try:
+                        p_out = json.loads(raw_out)
+                        if isinstance(p_out, dict) and "output" in p_out:
+                            display_out = p_out.get("output", "")
+                            if p_out.get("error"):
+                                display_out += f"\nErro: {p_out['error']}"
+                    except Exception:
+                        pass
+
+                display_out_str = str(display_out).strip()
+                if len(display_out_str) > 1200:
+                    display_out_str = display_out_str[:1180] + "\n... [saída truncada]"
+
+                dur_str = f" ({t.get('duration_ms', 0)}ms)" if t.get("duration_ms") else ""
+                status_icon = "❌" if t.get("is_error") else "✓"
+
+                tool_sections.append(
+                    f"**🔧 `{t_name}`** {status_icon}{dur_str}\n"
+                    f"- **Parâmetros:** {inp_str}\n"
+                    f"- **Saída:**\n```text\n{display_out_str}\n```"
+                )
+
+            tool_summary_md = (
+                f"<details class=\"hermes-tool-actions\">\n"
+                f"<summary>🛠️ <strong>Ações do Agente Hermes</strong> ({len(tools_used)} ferramenta(s) executada(s))</summary>\n\n"
+                + "\n\n---\n\n".join(tool_sections) +
+                f"\n\n</details>\n\n"
+            )
+            formatted_reply = f"{tool_summary_md}{final_reply}"
+
+        return {
+            "success": proc.returncode == 0 or bool(final_reply),
+            "reply": formatted_reply,
+            "raw_text": final_reply,
+            "tools": tools_used,
+            "session_id": captured_session_id or s_name
         }
 
     def collect_host_serials(self) -> Dict[str, Any]:
@@ -559,12 +739,24 @@ status: operacional
             "created_note": created_note
         }
 
-    def operator_chat(self, user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+    def operator_chat(self, user_message: str, history: Optional[List[Dict[str, str]]] = None, session_name: Optional[str] = None) -> str:
         """
-        Interação de Chat com a Operadora Oficial do Vault Shaula.
-        A IA mantém plena consciência do Vault Principal, do Vault Auxiliar,
-        da telemetria em tempo real e de seu papel como guardiã determinística do ecossistema.
+        Interação de Chat com o Agente Hermes Nativo no perfil Nashetanea.
+        Executa o motor real com todas as ferramentas nativas (terminal, arquivos,
+        python, web, memória, kanban) reproduzindo a mesma capacidade do terminal Hermes.
         """
+        try:
+            target_session = session_name or self.session_name
+            res = self.run_native_agent(user_message, session_name=target_session)
+            if res.get("reply"):
+                return res["reply"]
+        except Exception:
+            pass
+
+        return self._fallback_chat(user_message)
+
+    def _fallback_chat(self, user_message: str) -> str:
+        """Fallback contextual direto de inferência caso o processo nativo falhe."""
         self._load_credentials()
 
         # Coletar estatísticas reais do Vault Principal
