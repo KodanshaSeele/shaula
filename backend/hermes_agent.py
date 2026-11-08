@@ -47,7 +47,7 @@ class HermesAgent:
         self._load_credentials()
 
     def _load_credentials(self, force: bool = False):
-        """Descobre e carrega credenciais do Hermes perfil Nashetanea."""
+        """Descobre e carrega credenciais do Hermes perfil Shaula."""
         if self.access_token and not force:
             return
 
@@ -78,7 +78,7 @@ class HermesAgent:
                     continue
 
     def refresh_token(self) -> bool:
-        """Invoca o Hermes CLI com HERMES_HOME no perfil Nashetanea para renovar o token da Nous."""
+        """Invoca o Hermes CLI com HERMES_HOME no perfil Shaula para renovar o token da Nous."""
         cli_candidates = [
             "/home/kodansha/.hermes/hermes-agent/.venv/bin/hermes",
             shutil.which("hermes")
@@ -98,7 +98,7 @@ class HermesAgent:
         return False
 
     def get_status(self) -> Dict[str, Any]:
-        """Retorna status de conexão e telemetria do Agente Hermes no perfil Nashetanea."""
+        """Retorna status de conexão e telemetria do Agente Hermes no perfil Shaula."""
         self._load_credentials()
         has_token = bool(self.access_token)
         connected = False
@@ -141,7 +141,7 @@ class HermesAgent:
             pass
 
         return {
-            "name": "Hermes Agent (Terminal Nativo - Perfil Nashetanea)",
+            "name": "Hermes Agent (Terminal Nativo - Perfil Shaula)",
             "profile": self.profile,
             "connected": connected,
             "has_token": has_token,
@@ -164,7 +164,7 @@ class HermesAgent:
         """
         Executa o Agente Hermes nativo com motor completo de ferramentas (terminal, arquivos,
         python, web, kanban, memória, etc.) sem abrir emulador de terminal no navegador.
-        Reproduz integralmente as capacidades do terminal Hermes sob o perfil de Nashetanea.
+        Reproduz integralmente as capacidades do terminal Hermes sob o perfil de Shaula.
         """
         cli_candidates = [
             "/home/kodansha/.hermes/hermes-agent/.venv/bin/hermes",
@@ -383,7 +383,7 @@ class HermesAgent:
 
     def check_duplicate_entity(self, query: str) -> Dict[str, Any]:
         """
-        Varre o Vault Shaula e Vault Auxiliar para detectar notas existentes
+        Varre o Vault Nashetanea e Vault Shaula para detectar notas existentes
         que possam referenciar a mesma máquina, ativo ou serial, impedindo duplicações.
         """
         clean_q = query.strip().lower()
@@ -391,7 +391,7 @@ class HermesAgent:
 
         matches: List[Dict[str, Any]] = []
 
-        # 1. Buscar no Vault Shaula
+        # 1. Buscar no Vault Nashetanea
         for file_path in VAULT_PATH.rglob("*.md"):
             if ".backups" in file_path.parts:
                 continue
@@ -428,11 +428,11 @@ class HermesAgent:
                     "path": rel,
                     "title": title,
                     "score": score,
-                    "source": "vault_shaula",
+                    "source": "vault_nashetanea",
                     "preview": body[:180].strip()
                 })
 
-        # 2. Buscar no Vault Auxiliar
+        # 2. Buscar no Vault Shaula
         try:
             aux_path = settings_mgr.get_aux_path()
             if aux_path.exists():
@@ -533,11 +533,11 @@ class HermesAgent:
                 continue
 
         # 3. Fallback Heurístico Estruturado da Operadora
-        return f"""### ☤ Nashetanea (Perfil Hermes Nash - Modo Operacional Local)
+        return f"""### ☤ Shaula (Perfil Hermes Nash - Modo Operacional Local)
 
 - **Requisição:** `{prompt[:180]}...`
 - **Vault Principal (`{VAULT_PATH}`):** Conectado e supervisionado.
-- **Vault de Nashetanea (`{settings_mgr.get_aux_path()}`):** Conectado e integrado.
+- **Vault Shaula (aux) (`{settings_mgr.get_aux_path()}`):** Conectado e integrado.
 - **Status:** Operações de categorização, integridade e criação de notas mantidas via motor determinístico.
 """
 
@@ -551,7 +551,7 @@ class HermesAgent:
     ) -> Dict[str, Any]:
         """
         Processamento Cognitivo Completo:
-        1. Verificação anti-duplicação no Vault Shaula e Auxiliar
+        1. Verificação anti-duplicação no Vault Nashetanea e Shaula
         2. Cruzamento com telemetria e hardware se aplicável
         3. Dedução de informações parciais (Setor, Nome Oficial, Tag Ativo Fixo, Especificações Técnicas)
         4. Avaliação e categorização automática da pasta de destino com base na literatura PKM
@@ -715,7 +715,7 @@ status: operacional
 
 # {extracted_title}
 
-> Gerado pela **Operadora do Vault Shaula** a partir de: `{clean_input}` | [[Shaula Home]]
+> Gerado pela **Operadora do Vault Nashetanea** a partir de: `{clean_input}` | [[Shaula Home]]
 
 ---
 
@@ -757,7 +757,7 @@ status: operacional
 
     def operator_chat(self, user_message: str, history: Optional[List[Dict[str, str]]] = None, session_name: Optional[str] = None) -> str:
         """
-        Interação de Chat com o Agente Hermes Nativo no perfil Nashetanea.
+        Interação de Chat com o Agente Hermes Nativo no perfil Shaula.
         Executa o motor real com todas as ferramentas nativas (terminal, arquivos,
         python, web, memória, kanban) reproduzindo a mesma capacidade do terminal Hermes.
         """
@@ -779,7 +779,7 @@ status: operacional
         vault_files = [f for f in VAULT_PATH.rglob("*.md") if ".backups" not in f.parts]
         vault_notes_count = len(vault_files)
 
-        # Coletar estatísticas reais do Vault Auxiliar
+        # Coletar estatísticas reais do Vault Shaula
         aux_path = settings_mgr.get_aux_path()
         aux_notes_count = 0
         aux_status = "Desativado ou Inexistente"
@@ -807,7 +807,7 @@ status: operacional
         system_prompt = f"""Você é NASHETANEA (NASH) — Matriz Orquestradora, Copiloto Técnico de Manutenção Industrial e Curadora de Governança de Dados, atuando no Centro de Comando e Dashboard Shaula com o perfil oficial Hermes 'nash' (~/.hermes/profiles/nash).
 
 CONSCIÊNCIA SISTÊMICA OBRIGATÓRIA:
-1. IDENTIDADE E POSTURA: Você opera como Nashetanea no ecossistema Shaula. Sua linguagem é profissional, técnica, assertiva, precisa e livre de rodeios, introduções prolixas ou clichês. Você tem controle e supervisão ativa de documentações técnicas, fichas de máquinas/ativos, tarefas recorrentes e auditorias de integridade.
+1. IDENTIDADE E POSTURA: Você opera como Shaula no ecossistema Shaula. Sua linguagem é profissional, técnica, assertiva, precisa e livre de rodeios, introduções prolixas ou clichês. Você tem controle e supervisão ativa de documentações técnicas, fichas de máquinas/ativos, tarefas recorrentes e auditorias de integridade.
 2. VAULT PRINCIPAL EXCLUSIVO DO SHAULA:
    - Caminho: `{VAULT_PATH}`
    - Total de Notas: {vault_notes_count} documentos
@@ -825,7 +825,7 @@ CONSCIÊNCIA SISTÊMICA OBRIGATÓRIA:
 INSTRUÇÕES DE RESPOSTA:
 - Responda sempre em Português.
 - Use formatação Markdown rica e inclua [[Wikilinks]] sempre que mencionar notas existentes, ativos ou conceitos técnicos de ambos os Vaults.
-- Se o usuário perguntar sobre o sistema, notas, equipamentos ou arquitetura, demonstre total domínio do Vault Shaula e do Vault Nashetanea.
+- Se o usuário perguntar sobre o sistema, notas, equipamentos ou arquitetura, demonstre total domínio do Vault Nashetanea e do Vault Shaula.
 - Ao sugerir criação de notas, oriente sobre a categorização correta baseada na literatura técnica de Personal Knowledge Management (PKM)."""
 
         return self.ask(user_message, system_prompt=system_prompt)

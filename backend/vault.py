@@ -20,7 +20,7 @@ def safe_path(rel_path: str) -> Path:
     # Remove barras iniciais e normaliza
     clean = rel_path.strip().lstrip("/\\")
 
-    # Se referenciar o vault auxiliar de Nashetanea
+    # Se referenciar o vault auxiliar de Shaula
     if clean.startswith("aux_vault/") or clean.startswith("aux/"):
         aux_clean = clean.split("/", 1)[1] if "/" in clean else ""
         aux_base = settings_mgr.get_aux_path()
@@ -110,12 +110,12 @@ class VaultManager:
 
         root = walk_dir(self.vault_path)
 
-        # Integrar Vault de Nashetanea na navegação em árvore se habilitado
+        # Integrar Vault de Shaula (auxiliar) na navegação em árvore se habilitado
         if settings_mgr.settings.get("aux_vault_enabled", False):
             aux_base = settings_mgr.get_aux_path()
             if aux_base.exists() and aux_base.is_dir():
                 def walk_aux(directory: Path) -> Dict[str, Any]:
-                    name = directory.name if directory != aux_base else "🌿 Vault Nashetanea (Auxiliar)"
+                    name = directory.name if directory != aux_base else "🦂 Vault Shaula (Auxiliar)"
                     items = []
                     try:
                         entries = sorted(list(directory.iterdir()), key=lambda e: (not e.is_dir(), e.name.lower()))
@@ -329,7 +329,7 @@ Digite suas notas aqui...
                     "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
                 })
 
-        # Buscar também no Vault Auxiliar de Nashetanea se habilitado
+        # Buscar também no Vault Auxiliar se habilitado
         if settings_mgr.settings.get("aux_vault_enabled", False):
             try:
                 aux_base = settings_mgr.get_aux_path()
@@ -344,7 +344,7 @@ Digite suas notas aqui...
                             continue
 
                         metadata, body = parse_frontmatter(content)
-                        title = f"[Nash] {metadata.get('title', file_path.stem)}"
+                        title = f"[Shaula] {metadata.get('title', file_path.stem)}"
 
                         score = 0
                         matches = []
@@ -371,7 +371,16 @@ Digite suas notas aqui...
             except Exception:
                 pass
 
-        return sorted(results, key=lambda x: x["score"], reverse=True)
+        # Deduplicar por caminho normalizado e ordenar deterministicamente
+        seen = set()
+        unique_results = []
+        for r in sorted(results, key=lambda x: (-x["score"], x["path"])):
+            key = r["path"].lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_results.append(r)
+        return unique_results[:50]
 
     def verify_vault_integrity(self) -> Dict[str, Any]:
         """

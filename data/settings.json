@@ -1,8 +1,8 @@
 {
   "admin_password": "3884",
   "aux_vault_enabled": true,
-  "aux_vault_path": "/home/kodansha/.hermes/profiles/nash/vault",
-  "aux_sync_mode": "manual",
-  "auto_sync_interval_min": 0,
-  "last_sync": "2026-11-07T21:51:04.159027"
+  "aux_vault_path": "/home/kodansha/shaula/vault",
+  "aux_sync_mode": "bidirectional",
+  "auto_sync_interval_min": 5,
+  "last_sync": "2026-11-08T11:05:58.662353"
 }

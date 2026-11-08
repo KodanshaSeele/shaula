@@ -8,13 +8,13 @@
     "save_note": false,
     "save_log": true,
     "created_at": "2026-11-06T21:47:22.628931",
-    "last_run": "2026-11-07T22:11:10.468116",
-    "next_run": 1794105670.4681146,
+    "last_run": "2026-11-08T13:11:28.764241",
+    "next_run": 1794159688.7642388,
     "status": "idle",
     "last_result": {
       "success": true,
-      "message": "Status Geral: OPTIMAL | Alertas: 0 (Log arquivado em: logs/verification/Verificacao_20261107_221110.md)",
-      "duration_sec": 0.31
+      "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_131122.md)",
+      "duration_sec": 5.84
     }
   },
   {
@@ -25,13 +25,13 @@
     "enabled": true,
     "save_note": false,
     "created_at": "2026-11-06T21:47:22.628939",
-    "last_run": "2026-11-07T21:41:07.368874",
-    "next_run": 1794105667.3688731,
+    "last_run": "2026-11-08T12:41:21.769028",
+    "next_run": 1794159681.769028,
     "status": "idle",
     "last_result": {
       "success": true,
-      "message": "Integridade: HEALTHY | 42 notas | 0 links quebrados",
-      "duration_sec": 0.03
+      "message": "Integridade: HEALTHY | 11 notas | 0 links quebrados",
+      "duration_sec": 0.01
     }
   },
   {
@@ -42,9 +42,13 @@
     "enabled": true,
     "save_note": false,
     "created_at": "2026-11-06T21:47:22.628940",
-    "last_run": null,
-    "next_run": 1794109462.6224434,
+    "last_run": "2026-11-07T23:44:27.235812",
+    "next_run": 1794195867.235811,
     "status": "idle",
-    "last_result": null
+    "last_result": {
+      "success": true,
+      "message": "Backup concluído: shaula_vault_20261107_234427.tar.gz (6.15 KB)",
+      "duration_sec": 0.01
+    }
   }
 ]

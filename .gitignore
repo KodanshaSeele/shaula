@@ -27,3 +27,7 @@ htmlcov/
 logs/
 logs/*
 !logs/.gitkeep
+
+# Backups
+vault/.backups/
+.backups/

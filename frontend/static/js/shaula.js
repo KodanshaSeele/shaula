@@ -1514,7 +1514,7 @@ let currentHermesSessionId = null;
 let hermesChatHistory = [
   {
     role: 'assistant',
-    text: 'Olá! Sou **Nashetanea (Nash)**, operando no centro de comando Shaula com o perfil oficial Hermes e acesso integrado ao **Vault Shaula** e ao meu **Vault canônico de Nashetanea**.\n\nTelemetria e seriais do host sincronizados. Posso cruzar especificações de ativos, auditar links, categorizar documentos pela literatura PKM e consultar o conhecimento de ambos os cofres. Como posso ajudar agora?'
+    text: 'Olá! Sou **Shaula**, operando no centro de comando Shaula com o perfil oficial Hermes e acesso integrado ao **Vault Shaula** e ao meu **Vault Auxiliar**.\n\nTelemetria e seriais do host sincronizados. Posso cruzar especificações de ativos, auditar links, categorizar documentos pela literatura PKM e consultar o conhecimento de ambos os cofres. Como posso ajudar agora?'
   }
 ];
 
@@ -2093,11 +2093,11 @@ async function renderHermesView() {
           <div style="font-size:28px;">🤖</div>
           <div>
             <h2 style="color:#fff; font-size:18px; font-weight:600; display:flex; align-items:center; gap:8px;">
-              Operadora Hermes (Perfil Nashetanea)
+              Operadora Hermes (Perfil Shaula)
               <span class="pill-badge" id="hermesBadge" style="font-size:10px; background:rgba(124, 58, 237, 0.2); color:var(--text-accent);">Conectando...</span>
             </h2>
             <p style="color:var(--text-muted); font-size:12px;">
-              Inteligência Artificial Nashetanea (Hermes) com total domínio do <strong>Vault Principal</strong> (<code>./vault</code>) e do <strong>Vault de Nashetanea</strong>.
+              Inteligência Artificial Shaula (Hermes) com total domínio do <strong>Vault Shaula</strong> (<code>./vault</code>) e do <strong>Vault Auxiliar</strong>.
             </p>
           </div>
         </div>
@@ -2113,7 +2113,7 @@ async function renderHermesView() {
 
       <!-- Atalhos Rápidos de Ação -->
       <div style="display:flex; gap:8px; margin-bottom:14px; overflow-x:auto; padding-bottom:4px;">
-        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Qual é o status atual do Vault Principal e do Vault Auxiliar de Shaula? Quantas notas temos em cada um e como estão estruturadas?')">
+        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Qual é o status atual do Vault Shaula e do Vault Auxiliar de Shaula? Quantas notas temos em cada um e como estão estruturadas?')">
           📊 Status dos Vaults (Principal & Auxiliar)
         </button>
         <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Audite a integridade dos Wikilinks e conexões do Vault Shaula e aponte pendências ou links quebrados.')">
@@ -2213,7 +2213,7 @@ async function sendHermesMessage() {
   const pendingIndex = hermesChatHistory.length;
   hermesChatHistory.push({
     role: 'assistant',
-    text: '<span class="hermes-thinking-indicator">Nashetanea executando ferramentas nativas e processando raciocínio...</span>',
+    text: '<span class="hermes-thinking-indicator">Shaula executando ferramentas nativas e processando raciocínio...</span>',
     isPending: true
   });
   renderHermesChatHistory();
@@ -2275,7 +2275,7 @@ async function clearHermesChat() {
   hermesChatHistory = [
     {
       role: 'assistant',
-      text: 'Conversa reiniciada. Sou **Nashetanea (Nash)**, operando com o motor completo do Hermes e total integração aos Vaults. Em que posso atuar nas operações do sistema agora?'
+      text: 'Conversa reiniciada. Sou **Shaula**, operando com o motor completo do Hermes e total integração aos Vaults. Em que posso atuar nas operações do sistema agora?'
     }
   ];
   renderHermesChatHistory();
