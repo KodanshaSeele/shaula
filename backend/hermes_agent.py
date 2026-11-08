@@ -125,6 +125,21 @@ class HermesAgent:
         except Exception:
             pass
 
+        mcp_servers_list = []
+        try:
+            cfg_path = NASH_PROFILE_DIR / "config.yaml"
+            if cfg_path.exists():
+                import yaml
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+                servers = cfg.get("mcp_servers", {})
+                if isinstance(servers, dict):
+                    for s_name, s_cfg in servers.items():
+                        if isinstance(s_cfg, dict) and s_cfg.get("enabled", True):
+                            mcp_servers_list.append(s_name)
+        except Exception:
+            pass
+
         return {
             "name": "Hermes Agent (Terminal Nativo - Perfil Nashetanea)",
             "profile": self.profile,
@@ -136,6 +151,7 @@ class HermesAgent:
             "ollama_fallback": ollama_active,
             "host_hardware_serials_indexed": len(self.collect_host_serials()),
             "native_cli": True,
+            "mcp_servers": mcp_servers_list,
             "toolsets": ["terminal", "file", "python", "web", "kanban", "memory"]
         }
 
