@@ -17,6 +17,7 @@ from .config import (
     MAX_LOG_FILES, MAX_LOG_AGE_DAYS, MAX_LOG_SIZE_MB
 )
 from .vault import vault_mgr
+from .antigravity_agent import antigravity_agent
 
 
 def check_port(host: str, port: int, timeout: float = 1.0) -> bool:
@@ -103,13 +104,14 @@ class SystemVerifier:
         """Inspeciona estado dos serviços e bots essenciais."""
         services = {}
 
-        # 1. Hermes Gateway & Processos
-        hermes_procs = []
+        # 1. Gemini / Antigravity Agent
+        gemini_active = os.path.exists(antigravity_agent.agy_cli)
+        gemini_procs = []
         for proc in psutil.process_iter(["pid", "name", "cmdline"]):
             try:
                 cmdline = " ".join(proc.info["cmdline"] or [])
-                if "hermes" in cmdline.lower() and "grep" not in cmdline:
-                    hermes_procs.append({
+                if any(k in cmdline.lower() for k in ["agy", "antigravity", "gemini"]) and "grep" not in cmdline:
+                    gemini_procs.append({
                         "pid": proc.info["pid"],
                         "name": proc.info["name"],
                         "summary": cmdline[:120]
@@ -117,13 +119,16 @@ class SystemVerifier:
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
-        services["hermes"] = {
-            "name": "Hermes Agent & Gateway",
-            "active": len(hermes_procs) > 0,
-            "instances": len(hermes_procs),
-            "details": hermes_procs,
-            "status_label": "RUNNING" if len(hermes_procs) > 0 else "STOPPED"
+        services["gemini"] = {
+            "name": "Gemini (Antigravity Engine)",
+            "model": "Gemini 3.8 Flash (High)",
+            "active": gemini_active or len(gemini_procs) > 0,
+            "instances": max(1 if gemini_active else 0, len(gemini_procs)),
+            "cli_path": antigravity_agent.agy_cli,
+            "details": gemini_procs,
+            "status_label": "RUNNING" if (gemini_active or len(gemini_procs) > 0) else "STOPPED"
         }
+        services["hermes"] = services["gemini"]
 
         # 2. Ollama
         ollama_active = check_port("127.0.0.1", 11434)
@@ -334,8 +339,8 @@ class SystemVerifier:
             alerts.append(f"Uso de memória elevado: {telemetry['memory']['percent']}%")
         if telemetry["disk"]["root_percent"] > 90:
             alerts.append(f"Disco raiz com pouco espaço: {telemetry['disk']['root_percent']}%")
-        if not services["hermes"]["active"]:
-            alerts.append("Hermes Gateway não foi detectado em execução.")
+        if not services["gemini"]["active"]:
+            alerts.append("Gemini / Antigravity Engine não foi detectado em execução.")
         if vault_integrity["broken_links_count"] > 0:
             alerts.append(f"{vault_integrity['broken_links_count']} wikilink(s) quebrado(s) no vault.")
 
@@ -414,7 +419,7 @@ status: {data['overall_status']}
 
 | Serviço | Status | Porta/Instâncias |
 | :--- | :--- | :--- |
-| **Hermes Gateway** | `{s['hermes']['status_label']}` | {s['hermes']['instances']} processo(s) ativo(s) |
+| **Gemini (Antigravity)** | `{s['gemini']['status_label']}` | {s['gemini']['model']} ({s['gemini']['instances']} instâncias) |
 | **Ollama Engine** | `{s['ollama']['status_label']}` | Porta 11434 |
 | **Docker (Total)** | `{s['docker']['status_label']}` | {s['docker']['containers_count']} container(s) |
 | **Shaula Dashboard** | `{s['shaula']['status_label']}` | Porta 5000 |

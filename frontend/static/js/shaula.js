@@ -135,7 +135,7 @@ function switchView(viewName) {
 
     if (viewName === 'images') {
       renderImagesView();
-    } else if (viewName === 'hermes') {
+    } else if (viewName === 'hermes' || viewName === 'gemini') {
       renderHermesView();
     } else if (viewName === 'verification') {
       renderVerificationView();
@@ -510,10 +510,10 @@ function updateTelemetryUI(data) {
   // Header status pill
   const hostStatus = document.getElementById('hostStatusPill');
   if (hostStatus) {
-    const isHermesRunning = s.hermes && s.hermes.active;
+    const isGeminiRunning = (s.gemini && s.gemini.active) || (s.hermes && s.hermes.active);
     hostStatus.innerHTML = `
-      <span class="dot ${isHermesRunning ? 'dot-green' : 'dot-yellow'}"></span>
-      <span>Hermes: ${isHermesRunning ? 'Online' : 'Parado'} | Uptime: ${hw.uptime}</span>
+      <span class="dot ${isGeminiRunning ? 'dot-green' : 'dot-yellow'}"></span>
+      <span>Gemini: ${isGeminiRunning ? 'Online (Ativo)' : 'Parado'} | Uptime: ${hw.uptime}</span>
     `;
   }
 
@@ -626,13 +626,13 @@ function renderTelemetryGauges(hw, s) {
   sGrid.innerHTML = `
     <div class="stat-card">
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-weight:600;">Hermes Gateway</span>
-        <span class="pill-badge" style="background:${s.hermes.active ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color:${s.hermes.active ? 'var(--status-green)' : 'var(--status-red)'}">
-          ${s.hermes.status_label}
+        <span style="font-weight:600;">Gemini (Antigravity Engine)</span>
+        <span class="pill-badge" style="background:${(s.gemini?.active || s.hermes?.active) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color:${(s.gemini?.active || s.hermes?.active) ? 'var(--status-green)' : 'var(--status-red)'}">
+          ${(s.gemini || s.hermes).status_label}
         </span>
       </div>
       <div style="font-size:12px; color:var(--text-secondary); margin-top:6px;">
-        ${s.hermes.instances} processo(s) ativo(s)
+        Modelo: ${(s.gemini || s.hermes).model || 'Gemini 3.8 Flash (High)'}
       </div>
     </div>
 
@@ -1509,12 +1509,12 @@ async function updateAdminPassword() {
 }
 
 
-// --- AGENTE ANTIGRAVITY: CHAT, TELEMETRIA & TERMINAL PTY ---
+// --- AGENTE GEMINI / ANTIGRAVITY: CHAT, TELEMETRIA & TERMINAL PTY ---
 let currentHermesSessionId = null;
 let hermesChatHistory = [
   {
     role: 'assistant',
-    text: 'Olá! Sou **Antigravity**, o agente autônomo atuando no centro de comando Shaula. Estou regulado e ciente sobre o **Vault de Nash** (`~/.hermes/profiles/nash/vault`) e o **Vault Shaula** (`./vault`). Como posso ajudar com a governança técnica e ingestão de notas?'
+    text: 'Olá! Sou **Gemini (Antigravity)**, operando no centro de comando Shaula com o motor oficial Gemini 3.8 Flash (High) e acesso integrado ao **Vault Canônico de Nash** (`~/.hermes/profiles/nash/vault`) e ao **Vault Shaula** (`./vault`). Como posso ajudar com suas notas e operações do sistema?'
   }
 ];
 
@@ -2264,14 +2264,14 @@ async function renderHermesView() {
       <!-- Cabeçalho do Antigravity -->
       <div class="view-header-row" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:16px;">
         <div style="display:flex; align-items:center; gap:12px;">
-          <div style="font-size:28px;">🛸</div>
+          <div style="font-size:28px;">✨</div>
           <div>
             <h2 style="color:#fff; font-size:18px; font-weight:600; display:flex; align-items:center; gap:8px;">
-              Agente Antigravity (Terminal & Vaults)
-              <span class="pill-badge" id="hermesBadge" style="font-size:10px; background:rgba(124, 58, 237, 0.2); color:var(--text-accent);">Conectando...</span>
+              Agente Gemini (Antigravity · Terminal & Vaults)
+              <span class="pill-badge" id="hermesBadge" style="font-size:10px; background:rgba(124, 58, 237, 0.2); color:var(--text-accent);">Conectando Gemini...</span>
             </h2>
             <p style="color:var(--text-muted); font-size:12px;">
-              Inteligência Artificial Antigravity com total domínio do <strong>Vault Canônico de Nash</strong> (<code>~/.hermes/profiles/nash/vault</code>) e do <strong>Vault Shaula</strong> (<code>./vault</code>).
+              Inteligência Artificial <strong>Gemini 3.8 Flash</strong> integrada com total domínio do <strong>Vault Canônico de Nash</strong> (<code>~/.hermes/profiles/nash/vault</code>) e do <strong>Vault Shaula</strong> (<code>./vault</code>).
             </p>
           </div>
         </div>

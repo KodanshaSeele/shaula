@@ -390,19 +390,22 @@ async def sync_aux_vault(payload: AuxSyncRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# --- ROTAS DO AGENTE ANTIGRAVITY & COMPATIBILIDADE HERMES ---
+# --- ROTAS DO AGENTE GEMINI / ANTIGRAVITY & COMPATIBILIDADE ---
+@app.get("/api/gemini/status")
 @app.get("/api/antigravity/status")
 @app.get("/api/hermes/status")
 async def get_agent_status():
     return antigravity_agent.get_status()
 
 
+@app.get("/api/gemini/hardware-serials")
 @app.get("/api/antigravity/hardware-serials")
 @app.get("/api/hermes/hardware-serials")
 async def get_agent_hardware_serials():
     return antigravity_agent.collect_host_serials()
 
 
+@app.post("/api/gemini/chat")
 @app.post("/api/antigravity/chat")
 @app.post("/api/hermes/chat")
 async def chat_with_agent(payload: HermesChatRequest):
@@ -421,6 +424,7 @@ async def chat_with_agent(payload: HermesChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/gemini/chat/clear")
 @app.post("/api/antigravity/chat/clear")
 @app.post("/api/hermes/chat/clear")
 async def clear_agent_chat():

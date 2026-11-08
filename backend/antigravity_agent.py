@@ -50,10 +50,11 @@ class AntigravityAgent:
         serials_count = len(self.collect_host_serials())
 
         return {
-            "name": "Antigravity Agent (CLI / Terminal Nativo)",
-            "agent": "Antigravity",
+            "name": "Gemini 3.8 Flash (Antigravity Agent)",
+            "agent": "Gemini",
             "connected": cli_exists,
             "has_token": True,
+            "gemini_integrated": True,
             "provider": "Google DeepMind / Antigravity",
             "model": "Gemini 3.8 Flash (High)",
             "inference_base": "Antigravity CLI (agy)",

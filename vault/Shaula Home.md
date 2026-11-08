@@ -31,8 +31,8 @@ status: ativo
 ### 1. Verificação Determinística
 - Monitoramento de recursos do host: CPU, RAM, Disco e Uptime.
 - Supervisão de processos e serviços essenciais:
-  - **Hermes Gateway** (Nous Portal)
-  - **Docker & Szurubooru**
+  - **Gemini / Antigravity Agent** (Gemini 3.8 Flash High)
+  - **Docker & Containers**
   - **Ollama LLM Host**
 - Geração automática de relatórios de verificação em Markdown diretamente em `01 - Verification/`.
 
