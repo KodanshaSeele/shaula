@@ -5,7 +5,7 @@ Integra Vault Exclusivo, Motor de Verificação, Agendador de Tarefas e Configur
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Query, Body, Header, Depends, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Query, Body, Header, Depends, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +14,13 @@ from typing import Optional, Dict, Any, List
 import json
 import shutil
 import re
+import os
+import pty
+import fcntl
+import termios
+import struct
+import asyncio
+import subprocess
 from datetime import datetime
 import unicodedata
 
@@ -23,11 +30,12 @@ def slugify(text: str) -> str:
     clean = re.sub(r'[^a-zA-Z0-9_\- ]', '', norm).strip()
     return re.sub(r'\s+', '_', clean)
 
-from .config import VAULT_PATH, STATIC_DIR, FRONTEND_DIR, ASSETS_DIR, HOST, PORT
+from .config import VAULT_PATH, STATIC_DIR, FRONTEND_DIR, ASSETS_DIR, HOST, PORT, BASE_DIR
 from .vault import vault_mgr
 from .verifier import verifier
 from .scheduler import scheduler
 from .settings_manager import settings_mgr
+from .antigravity_agent import antigravity_agent
 from .hermes_agent import hermes_agent
 
 
@@ -382,21 +390,24 @@ async def sync_aux_vault(payload: AuxSyncRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# --- ROTAS DO AGENTE HERMES ---
+# --- ROTAS DO AGENTE ANTIGRAVITY & COMPATIBILIDADE HERMES ---
+@app.get("/api/antigravity/status")
 @app.get("/api/hermes/status")
-async def get_hermes_status():
-    return hermes_agent.get_status()
+async def get_agent_status():
+    return antigravity_agent.get_status()
 
 
+@app.get("/api/antigravity/hardware-serials")
 @app.get("/api/hermes/hardware-serials")
-async def get_hermes_hardware_serials():
-    return hermes_agent.collect_host_serials()
+async def get_agent_hardware_serials():
+    return antigravity_agent.collect_host_serials()
 
 
+@app.post("/api/antigravity/chat")
 @app.post("/api/hermes/chat")
-async def chat_with_hermes(payload: HermesChatRequest):
+async def chat_with_agent(payload: HermesChatRequest):
     try:
-        reply = hermes_agent.operator_chat(
+        reply = antigravity_agent.operator_chat(
             user_message=payload.message,
             history=payload.history,
             session_name=payload.session_id
@@ -404,16 +415,135 @@ async def chat_with_hermes(payload: HermesChatRequest):
         return {
             "success": True,
             "reply": reply,
-            "session_id": hermes_agent.session_name
+            "session_id": antigravity_agent.session_name
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/antigravity/chat/clear")
 @app.post("/api/hermes/chat/clear")
-async def clear_hermes_chat():
-    new_session = hermes_agent.reset_session()
+async def clear_agent_chat():
+    new_session = antigravity_agent.reset_session()
     return {"success": True, "session_id": new_session}
+
+
+def _setup_pty_process(cmd: List[str], env: Dict[str, str], cwd: str, rows: int = 24, cols: int = 80):
+    """Cria pseudoterminal e inicia subprocesso vinculado."""
+    master_fd, slave_fd = pty.openpty()
+    os.set_blocking(master_fd, False)
+    try:
+        winsize = struct.pack("HHHH", rows, cols, 0, 0)
+        fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
+    except Exception:
+        pass
+
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            close_fds=True,
+            cwd=cwd,
+            env=env
+        )
+    finally:
+        os.close(slave_fd)
+    return master_fd, proc
+
+
+def _handle_pty_resize(master_fd: int, raw_text: str) -> bool:
+    """Aplica redimensionamento do terminal se o payload for resize."""
+    if raw_text.startswith("{") and "resize" in raw_text:
+        try:
+            pl = json.loads(raw_text)
+            if pl.get("type") == "resize":
+                r = int(pl.get("rows", 24))
+                c = int(pl.get("cols", 80))
+                winsize = struct.pack("HHHH", r, c, 0, 0)
+                fcntl.ioctl(master_fd, termios.TIOCSWINSZ, winsize)
+                return True
+        except Exception:
+            pass
+    return False
+
+
+@app.websocket("/api/terminal/ws")
+async def terminal_websocket(websocket: WebSocket):
+    """Ponte WebSocket para terminal interativo Antigravity com PTY."""
+    await websocket.accept()
+
+    env = os.environ.copy()
+    env["TERM"] = "xterm-256color"
+    env["COLORTERM"] = "truecolor"
+    env["LANG"] = "en_US.UTF-8"
+    env["HERMES_VAULT_NASH"] = str(antigravity_agent.nash_vault)
+    env["SHAULA_VAULT"] = str(antigravity_agent.shaula_vault)
+
+    cmd = [
+        antigravity_agent.agy_cli,
+        "--add-dir", str(antigravity_agent.nash_vault),
+        "--add-dir", str(antigravity_agent.shaula_vault)
+    ]
+
+    master_fd, proc = _setup_pty_process(cmd=cmd, env=env, cwd=str(BASE_DIR))
+    loop = asyncio.get_running_loop()
+    closed = False
+
+    def on_pty_read():
+        nonlocal closed
+        if closed:
+            return
+        try:
+            data = os.read(master_fd, 4096)
+            if not data:
+                return
+            async def _send():
+                try:
+                    await websocket.send_bytes(data)
+                except Exception:
+                    pass
+            asyncio.create_task(_send())
+        except (BlockingIOError, InterruptedError):
+            pass
+        except Exception:
+            closed = True
+
+    loop.add_reader(master_fd, on_pty_read)
+
+    try:
+        while not closed and proc.poll() is None:
+            msg = await websocket.receive()
+            if "text" in msg:
+                text = msg["text"]
+                if not _handle_pty_resize(master_fd, text):
+                    os.write(master_fd, text.encode("utf-8", errors="ignore"))
+            elif "bytes" in msg:
+                os.write(master_fd, msg["bytes"])
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        closed = True
+        try:
+            loop.remove_reader(master_fd)
+        except Exception:
+            pass
+        try:
+            os.close(master_fd)
+        except Exception:
+            pass
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+                proc.wait(timeout=1.0)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
 
 
 @app.post("/api/vault/resolve-link")

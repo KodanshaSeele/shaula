@@ -1509,22 +1509,196 @@ async function updateAdminPassword() {
 }
 
 
-// --- AGENTE HERMES: CHAT & PROCESSAMENTO DE SERIAIS ---
+// --- AGENTE ANTIGRAVITY: CHAT, TELEMETRIA & TERMINAL PTY ---
 let currentHermesSessionId = null;
 let hermesChatHistory = [
   {
     role: 'assistant',
-    text: 'Olá! Sou **Shaula**, operando no centro de comando Shaula com o perfil oficial Hermes e acesso integrado ao **Vault Shaula** e ao meu **Vault Auxiliar**.\n\nTelemetria e seriais do host sincronizados. Posso cruzar especificações de ativos, auditar links, categorizar documentos pela literatura PKM e consultar o conhecimento de ambos os cofres. Como posso ajudar agora?'
+    text: 'Olá! Sou **Antigravity**, o agente autônomo atuando no centro de comando Shaula. Estou regulado e ciente sobre o **Vault de Nash** (`~/.hermes/profiles/nash/vault`) e o **Vault Shaula** (`./vault`). Como posso ajudar com a governança técnica e ingestão de notas?'
   }
 ];
 
-// --- INGESTÃO INTELIGENTE COM IA & ANTI-DUPLICAÇÃO (AGENTE HERMES) ---
+// --- TERMINAL INTERATIVO ANTIGRAVITY (WEBSOCKET + XTERM.JS) ---
+let antigravityTerm = null;
+let antigravityFitAddon = null;
+let antigravityWs = null;
+
+function switchSmartNoteMode(mode) {
+  const btnForm = document.getElementById('btnSmartModeForm');
+  const btnTerm = document.getElementById('btnSmartModeTerminal');
+  const step1 = document.getElementById('smartNoteStep1');
+  const step2 = document.getElementById('smartNoteStep2');
+  const termView = document.getElementById('smartNoteTerminalView');
+
+  if (mode === 'form') {
+    if (btnForm) btnForm.classList.add('active');
+    if (btnTerm) btnTerm.classList.remove('active');
+    if (termView) termView.style.display = 'none';
+    if (step1) step1.style.display = 'block';
+  } else if (mode === 'terminal') {
+    if (btnTerm) btnTerm.classList.add('active');
+    if (btnForm) btnForm.classList.remove('active');
+    if (step1) step1.style.display = 'none';
+    if (step2) step2.style.display = 'none';
+    if (termView) termView.style.display = 'block';
+    setTimeout(() => {
+      initAntigravityTerminal();
+    }, 60);
+  }
+}
+
+function initAntigravityTerminal() {
+  const container = document.getElementById('antigravityTerminalContainer');
+  if (!container) return;
+
+  if (antigravityTerm) {
+    if (antigravityFitAddon) {
+      try { antigravityFitAddon.fit(); } catch (e) {}
+    }
+    antigravityTerm.focus();
+    return;
+  }
+
+  if (typeof Terminal === 'undefined') {
+    container.innerHTML = '<div style="color:var(--status-red); padding:16px;">Biblioteca xterm.js não encontrada.</div>';
+    return;
+  }
+
+  antigravityTerm = new Terminal({
+    cursorBlink: true,
+    fontSize: 13,
+    fontFamily: 'Consolas, "Ubuntu Mono", Menlo, Monaco, monospace',
+    theme: {
+      background: '#08090c',
+      foreground: '#e2e8f0',
+      cursor: '#a78bfa',
+      selectionBackground: 'rgba(124, 58, 237, 0.4)',
+      black: '#000000',
+      red: '#ef4444',
+      green: '#10b981',
+      yellow: '#f59e0b',
+      blue: '#3b82f6',
+      magenta: '#8b5cf6',
+      cyan: '#06b6d4',
+      white: '#f8fafc'
+    }
+  });
+
+  if (typeof FitAddon !== 'undefined' && FitAddon.FitAddon) {
+    antigravityFitAddon = new FitAddon.FitAddon();
+    antigravityTerm.loadAddon(antigravityFitAddon);
+  }
+
+  antigravityTerm.open(container);
+  if (antigravityFitAddon) {
+    try { antigravityFitAddon.fit(); } catch (e) {}
+  }
+  antigravityTerm.focus();
+
+  connectTerminalWebSocket();
+
+  window.addEventListener('resize', () => {
+    if (antigravityFitAddon && antigravityTerm) {
+      try { antigravityFitAddon.fit(); } catch (e) {}
+    }
+  });
+}
+
+function connectTerminalWebSocket() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${location.host}/api/terminal/ws`;
+
+  try {
+    antigravityWs = new WebSocket(wsUrl);
+    antigravityWs.binaryType = 'arraybuffer';
+
+    antigravityWs.onopen = () => {
+      if (antigravityFitAddon && antigravityTerm) {
+        const dims = antigravityFitAddon.proposeDimensions();
+        if (dims) {
+          antigravityWs.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
+        }
+      }
+    };
+
+    antigravityWs.onmessage = (event) => {
+      if (!antigravityTerm) return;
+      if (event.data instanceof ArrayBuffer) {
+        const text = new TextDecoder().decode(event.data);
+        antigravityTerm.write(text);
+      } else {
+        antigravityTerm.write(event.data);
+      }
+    };
+
+    antigravityWs.onclose = () => {
+      if (antigravityTerm) {
+        antigravityTerm.write('\r\n\x1b[33m[Sessão PTY Antigravity desconectada. Clique em Reiniciar para abrir nova conexão.]\x1b[0m\r\n');
+      }
+    };
+
+    antigravityWs.onerror = () => {
+      if (antigravityTerm) {
+        antigravityTerm.write('\r\n\x1b[31m[Erro de conexão WebSocket com /api/terminal/ws]\x1b[0m\r\n');
+      }
+    };
+
+    antigravityTerm.onData((data) => {
+      if (antigravityWs && antigravityWs.readyState === WebSocket.OPEN) {
+        antigravityWs.send(data);
+      }
+    });
+
+    antigravityTerm.onResize((size) => {
+      if (antigravityWs && antigravityWs.readyState === WebSocket.OPEN) {
+        antigravityWs.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
+      }
+    });
+  } catch (err) {
+    if (antigravityTerm) {
+      antigravityTerm.write(`\r\n\x1b[31mFalha ao iniciar WebSocket: ${err.message}\x1b[0m\r\n`);
+    }
+  }
+}
+
+function restartAntigravityTerminal() {
+  if (antigravityWs) {
+    try { antigravityWs.close(); } catch (e) {}
+    antigravityWs = null;
+  }
+  if (antigravityTerm) {
+    antigravityTerm.clear();
+    antigravityTerm.write('\x1b[36mReiniciando terminal Antigravity com Vaults vinculados...\x1b[0m\r\n');
+  }
+  connectTerminalWebSocket();
+}
+
+function clearAntigravityTerminal() {
+  if (antigravityTerm) {
+    antigravityTerm.clear();
+  }
+}
+
+function sendTerminalPrompt(promptText) {
+  if (!antigravityWs || antigravityWs.readyState !== WebSocket.OPEN) {
+    switchSmartNoteMode('terminal');
+  }
+  setTimeout(() => {
+    if (antigravityWs && antigravityWs.readyState === WebSocket.OPEN) {
+      antigravityWs.send(promptText + '\r');
+      if (antigravityTerm) antigravityTerm.focus();
+    }
+  }, 100);
+}
+
+// --- INGESTÃO INTELIGENTE COM IA & ANTI-DUPLICAÇÃO (AGENTE ANTIGRAVITY) ---
 let duplicateDebounceTimer = null;
 
 async function openSmartNoteModal() {
   const modal = document.getElementById('smartNoteModal');
   if (!modal) return;
   modal.style.display = 'flex';
+  switchSmartNoteMode('form');
   const inp = document.getElementById('smartNoteInput');
   inp.value = '';
   document.getElementById('smartNoteTitleInput').value = '';
@@ -2082,27 +2256,30 @@ async function submitImageUpload() {
   }
 }
 
-// --- VIEW DO AGENTE HERMES ---
+// --- VIEW DO AGENTE ANTIGRAVITY ---
 async function renderHermesView() {
   const container = document.getElementById('customViewContainer');
   container.innerHTML = `
     <div class="full-panel-view hermes-view-panel" style="display:flex; flex-direction:column; height:100%;">
-      <!-- Cabeçalho do Hermes -->
+      <!-- Cabeçalho do Antigravity -->
       <div class="view-header-row" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:14px; margin-bottom:16px;">
         <div style="display:flex; align-items:center; gap:12px;">
-          <div style="font-size:28px;">🤖</div>
+          <div style="font-size:28px;">🛸</div>
           <div>
             <h2 style="color:#fff; font-size:18px; font-weight:600; display:flex; align-items:center; gap:8px;">
-              Operadora Hermes (Perfil Shaula)
+              Agente Antigravity (Terminal & Vaults)
               <span class="pill-badge" id="hermesBadge" style="font-size:10px; background:rgba(124, 58, 237, 0.2); color:var(--text-accent);">Conectando...</span>
             </h2>
             <p style="color:var(--text-muted); font-size:12px;">
-              Inteligência Artificial Shaula (Hermes) com total domínio do <strong>Vault Shaula</strong> (<code>./vault</code>) e do <strong>Vault Auxiliar</strong>.
+              Inteligência Artificial Antigravity com total domínio do <strong>Vault Canônico de Nash</strong> (<code>~/.hermes/profiles/nash/vault</code>) e do <strong>Vault Shaula</strong> (<code>./vault</code>).
             </p>
           </div>
         </div>
         <div class="header-action-buttons" style="display:flex; gap:8px;">
-          <button class="btn-primary" onclick="openSmartNoteModal()">
+          <button class="btn-primary" onclick="openSmartNoteModal(); switchSmartNoteMode('terminal');">
+            <span>💻</span> Terminal Antigravity
+          </button>
+          <button class="btn-secondary" onclick="openSmartNoteModal()">
             <span>⚡</span> Nota Inteligente
           </button>
           <button class="btn-secondary" onclick="clearHermesChat()">
@@ -2113,17 +2290,17 @@ async function renderHermesView() {
 
       <!-- Atalhos Rápidos de Ação -->
       <div style="display:flex; gap:8px; margin-bottom:14px; overflow-x:auto; padding-bottom:4px;">
-        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Qual é o status atual do Vault Shaula e do Vault Auxiliar de Shaula? Quantas notas temos em cada um e como estão estruturadas?')">
-          📊 Status dos Vaults (Principal & Auxiliar)
+        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Qual é o status atual do Vault Canônico de Nash e do Vault Shaula? Quantas notas temos em cada um e como estão estruturados?')">
+          📊 Status dos Vaults (Nash & Shaula)
         </button>
         <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Audite a integridade dos Wikilinks e conexões do Vault Shaula e aponte pendências ou links quebrados.')">
           🛡️ Auditar Wikilinks e Integridade
         </button>
-        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Como você, Operadora do Vault, classifica novos ativos e máquinas nas categorias da literatura de Personal Knowledge Management (PKM)?')">
+        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Como você, Antigravity, classifica novos ativos e máquinas nas categorias da literatura de Personal Knowledge Management (PKM)?')">
           🏭 Categorização PKM de Ativos
         </button>
-        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Resuma os principais tópicos da nota atualmente aberta no editor.')">
-          📝 Resumir Nota Ativa
+        <button class="btn-secondary" style="font-size:11px; padding:4px 10px; border-radius:14px; white-space:nowrap;" onclick="promptHermesWithContext('Explique o contrato operacional e as regras de governança de AGENTS.md no Vault de Nash.')">
+          📜 Contrato Operacional AGENTS.md
         </button>
       </div>
 
@@ -2134,7 +2311,7 @@ async function renderHermesView() {
 
       <!-- Barra de Envio -->
       <div class="hermes-input-bar" style="display:flex; gap:10px; align-items:center;">
-        <input type="text" id="hermesPromptInput" placeholder="Pergunte à Operadora sobre notas, máquinas, telemetria ou ações nos Vaults..." style="flex:1; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:#fff; font-size:13.5px; outline:none;" onkeydown="if(event.key === 'Enter') sendHermesMessage()">
+        <input type="text" id="hermesPromptInput" placeholder="Pergunte ao Antigravity sobre notas, máquinas, telemetria ou ações nos Vaults..." style="flex:1; padding:12px 16px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; color:#fff; font-size:13.5px; outline:none;" onkeydown="if(event.key === 'Enter') sendHermesMessage()">
         <button class="btn-primary" id="btnSendHermes" style="padding:12px 20px;" onclick="sendHermesMessage()">
           <span>Enviar</span> ➔
         </button>
@@ -2148,13 +2325,13 @@ async function renderHermesView() {
 
 async function updateHermesStatusBadge() {
   try {
-    const res = await fetch('/api/hermes/status');
+    const res = await fetch('/api/antigravity/status');
     if (!res.ok) return;
     const data = await res.json();
     const badge = document.getElementById('hermesBadge');
     if (badge) {
       if (data.connected || data.native_cli) {
-        badge.textContent = `✓ ${data.model} (Motor Nativo)`;
+        badge.textContent = `✓ ${data.model} (Antigravity CLI)`;
         badge.style.background = 'rgba(16, 185, 129, 0.15)';
         badge.style.color = 'var(--status-green)';
       } else {
@@ -2213,7 +2390,7 @@ async function sendHermesMessage() {
   const pendingIndex = hermesChatHistory.length;
   hermesChatHistory.push({
     role: 'assistant',
-    text: '<span class="hermes-thinking-indicator">Shaula executando ferramentas nativas e processando raciocínio...</span>',
+    text: '<span class="hermes-thinking-indicator">Antigravity executando raciocínio e consultando os Vaults...</span>',
     isPending: true
   });
   renderHermesChatHistory();
@@ -2225,7 +2402,7 @@ async function sendHermesMessage() {
   }
 
   try {
-    const res = await fetch('/api/hermes/chat', {
+    const res = await fetch('/api/antigravity/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2235,7 +2412,7 @@ async function sendHermesMessage() {
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || 'Falha na resposta do Hermes');
+      throw new Error(errData.detail || 'Falha na resposta do Antigravity');
     }
     const data = await res.json();
     if (data.session_id) {
@@ -2245,7 +2422,7 @@ async function sendHermesMessage() {
   } catch (err) {
     hermesChatHistory[pendingIndex] = {
       role: 'assistant',
-      text: `❌ **Erro ao consultar o Hermes:** ${err.message}`
+      text: `❌ **Erro ao consultar o Antigravity:** ${err.message}`
     };
   } finally {
     if (btn) {
@@ -2266,7 +2443,7 @@ function promptHermesWithContext(promptText) {
 
 async function clearHermesChat() {
   try {
-    const res = await fetch('/api/hermes/chat/clear', { method: 'POST' });
+    const res = await fetch('/api/antigravity/chat/clear', { method: 'POST' });
     if (res.ok) {
       const data = await res.json();
       currentHermesSessionId = data.session_id;
@@ -2275,11 +2452,11 @@ async function clearHermesChat() {
   hermesChatHistory = [
     {
       role: 'assistant',
-      text: 'Conversa reiniciada. Sou **Shaula**, operando com o motor completo do Hermes e total integração aos Vaults. Em que posso atuar nas operações do sistema agora?'
+      text: 'Conversa reiniciada. Sou **Antigravity**, operando com CLI nativo e total integração ao Vault de Nash e ao Vault Shaula. Como posso colaborar?'
     }
   ];
   renderHermesChatHistory();
-  showToast('Sessão com a Operadora Hermes reiniciada.', 'info');
+  showToast('Sessão com o Agente Antigravity reiniciada.', 'info');
 }
 
 function insertTextIntoActiveEditor(msgIndex) {
@@ -2288,7 +2465,7 @@ function insertTextIntoActiveEditor(msgIndex) {
 
   const editor = document.getElementById('rawEditor');
   if (editor && state.currentNote) {
-    editor.value += `\n\n### ☤ Nota do Agente Hermes\n${msg.text}\n`;
+    editor.value += `\n\n### 🛸 Anotação Antigravity\n${msg.text}\n`;
     state.isDirty = true;
     updateSaveStatusBadge();
     renderMarkdownLive();

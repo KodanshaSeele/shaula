@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>🦂 Shaula — Centro de Comando & Vault</title>
   <link rel="stylesheet" href="/static/css/obsidian.css">
+  <link rel="stylesheet" href="/static/css/xterm.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20width=%22100%22%20height=%22100%22><text y=%22.9em%22 font-size=%2290%22>🦂</text></svg>">
 </head>
 <body>
@@ -28,9 +29,9 @@
       <span class="search-badge">Ctrl+O</span>
     </div>
 
-    <button class="btn-primary titlebar-action-btn" onclick="openSmartNoteModal()" title="Nova Nota Inteligente com Agente Hermes">
+    <button class="btn-primary titlebar-action-btn" onclick="openSmartNoteModal()" title="Nota Inteligente & Terminal Antigravity">
       <span>⚡</span>
-      <span class="btn-text">Nota Inteligente</span>
+      <span class="btn-text">Nota Inteligente & Terminal</span>
     </button>
     <button class="btn-secondary titlebar-action-btn" onclick="switchView('images')" title="Inserir até 20 imagens">
       <span>🖼️</span>
@@ -54,7 +55,7 @@
     <nav class="activity-bar">
       <button class="activity-btn active" data-view="vault" title="Explorador de Arquivos do Vault">📁</button>
       <button class="activity-btn" data-view="images" title="Inserir & Triagem de Imagens (até 20)">🖼️</button>
-      <button class="activity-btn" data-view="hermes" title="Agente Hermes (Assistente Inteligente & Tarefas)">🤖</button>
+      <button class="activity-btn" data-view="hermes" title="Agente Antigravity (Terminal Nativo & Vaults)">🛸</button>
       <button class="activity-btn" data-view="verification" title="Diagnóstico & Verificação">🩺</button>
       <button class="activity-btn" data-view="scheduler" title="Motor de Agendamento">⏱️</button>
       <button class="activity-btn" data-view="integrity" title="Integridade do Vault & Backups">🛡️</button>
@@ -195,14 +196,26 @@
     </div>
   </div>
 
-  <!-- Modal: Ingestão Inteligente de Ativos & Notas pelo Agente Hermes -->
+  <!-- Modal: Ingestão Inteligente de Ativos & Notas pelo Agente Antigravity -->
   <div class="modal-overlay" id="smartNoteModal" style="display:none;" onclick="if(event.target === this) closeSmartNoteModal()">
-    <div class="modal-box" style="width: 740px; max-width: 95vw;">
+    <div class="modal-box" style="width: 780px; max-width: 95vw;">
       <div class="modal-header">
         <span style="font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px;">
-          <span>⚡</span> Ingestão Inteligente de Notas (Agente Hermes)
+          <span>⚡</span> Ingestão Inteligente & Terminal Antigravity
         </span>
+        <span class="pill-badge" style="font-size:10px; background:rgba(124, 58, 237, 0.2); color:var(--text-accent); margin-left:auto; margin-right:8px;">🛸 Antigravity Ativo</span>
         <button class="icon-btn" onclick="closeSmartNoteModal()">✕</button>
+      </div>
+
+      <!-- SELETOR DE MODO: FORMULÁRIO GUIADO OU TERMINAL DIRETO -->
+      <div style="display:flex; gap:8px; padding: 10px 16px 0 16px; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.15);">
+        <button type="button" class="toggle-btn active" id="btnSmartModeForm" onclick="switchSmartNoteMode('form')">
+          ⚡ Formulário Guiado (Minuta)
+        </button>
+        <button type="button" class="toggle-btn" id="btnSmartModeTerminal" onclick="switchSmartNoteMode('terminal')">
+          💻 Terminal Direto Antigravity
+          <span class="pill-badge" style="font-size:9px; background:rgba(16,185,129,0.2); color:#10b981; margin-left:6px;">CLI Nativo</span>
+        </button>
       </div>
 
       <!-- PASSO 1: ENTRADA E CRUZAMENTO DE DADOS -->
@@ -327,6 +340,43 @@
         </div>
       </div>
 
+      <!-- MODO TERMINAL: JANELA INTERATIVA DIRETA COM ANTIGRAVITY (AGY) -->
+      <div id="smartNoteTerminalView" style="display:none; padding:12px 16px 16px 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:11.5px; color:var(--text-muted); flex-wrap:wrap; gap:6px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="dot dot-green"></span>
+            <span style="color:#fff; font-weight:600;">PTY WebSocket Ativo: agy CLI</span>
+            <span class="note-path-tag" style="font-size:10.5px; color:var(--text-accent);">📁 Nash: ~/.hermes/profiles/nash/vault</span>
+            <span class="note-path-tag" style="font-size:10.5px;">📁 Shaula: ./vault</span>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn-secondary" style="font-size:11px; padding:3px 8px;" onclick="restartAntigravityTerminal()" title="Reiniciar Sessão PTY">
+              🔄 Reiniciar
+            </button>
+            <button type="button" class="btn-secondary" style="font-size:11px; padding:3px 8px;" onclick="clearAntigravityTerminal()" title="Limpar Tela">
+              🧹 Limpar
+            </button>
+          </div>
+        </div>
+
+        <!-- Janela de Terminal xterm.js -->
+        <div id="antigravityTerminalContainer" style="height: 380px; width: 100%; background: #08090c; border: 1px solid var(--border-color); border-radius: 6px; padding: 4px; overflow: hidden; box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);"></div>
+
+        <!-- Atalhos Rápidos com Contexto Regulado -->
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; align-items:center;">
+          <span style="font-size:10.5px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Atalhos:</span>
+          <button type="button" class="btn-secondary" style="font-size:11px; padding:3px 9px; border-radius:12px;" onclick="sendTerminalPrompt('Qual o estado do Vault de Nash e do Vault Shaula?')">
+            📊 Status dos Vaults (Nash & Shaula)
+          </button>
+          <button type="button" class="btn-secondary" style="font-size:11px; padding:3px 9px; border-radius:12px;" onclick="sendTerminalPrompt('Consulte as notas em 03 - Knowledge/Ativos')">
+            🔍 Ativos em 03 - Knowledge
+          </button>
+          <button type="button" class="btn-secondary" style="font-size:11px; padding:3px 9px; border-radius:12px;" onclick="sendTerminalPrompt('Explique as diretrizes e regras do AGENTS.md')">
+            📜 Regras AGENTS.md
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -335,6 +385,8 @@
 
   <!-- Bibliotecas JS -->
   <script src="/static/js/marked.min.js"></script>
+  <script src="/static/js/xterm.js"></script>
+  <script src="/static/js/addon-fit.js"></script>
   <script src="/static/js/shaula.js"></script>
 </body>
 </html>
