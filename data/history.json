@@ -968,5 +968,35 @@
     "success": true,
     "duration_sec": 6.97,
     "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_151207.md)"
+  },
+  {
+    "id": "1ab33c0e",
+    "job_id": "job_vault_integrity",
+    "job_name": "Varredura de Integridade do Vault",
+    "action": "vault_integrity",
+    "timestamp": "2026-11-08T15:41:44.956576",
+    "success": true,
+    "duration_sec": 5.44,
+    "message": "Integridade: WARNING | 3139 notas | 383 links quebrados"
+  },
+  {
+    "id": "6bba53d8",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-08T15:42:20.199315",
+    "success": true,
+    "duration_sec": 5.24,
+    "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_154214.md)"
+  },
+  {
+    "id": "c4375628",
+    "job_id": "job_system_health",
+    "job_name": "Verificação Periódica de Saúde do Sistema",
+    "action": "system_verification",
+    "timestamp": "2026-11-08T16:12:25.385436",
+    "success": true,
+    "duration_sec": 5.12,
+    "message": "Status Geral: WARNING | Alertas: 1 (Log arquivado em: logs/verification/Verificacao_20261108_161220.md)"
   }
 ]

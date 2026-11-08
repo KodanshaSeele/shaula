@@ -128,6 +128,13 @@ class HermesChatRequest(BaseModel):
     session_id: Optional[str] = None
 
 
+class AntigravityAskRequest(BaseModel):
+    prompt: Optional[str] = None
+    message: Optional[str] = None
+    system_prompt: Optional[str] = None
+    timeout: int = 60
+
+
 class HermesSerialRequest(BaseModel):
     serial: str
     title: Optional[str] = None
@@ -430,6 +437,24 @@ async def chat_with_agent(payload: HermesChatRequest):
 async def clear_agent_chat():
     new_session = antigravity_agent.reset_session()
     return {"success": True, "session_id": new_session}
+
+
+@app.post("/api/antigravity/ask")
+@app.post("/api/gemini/ask")
+async def ask_antigravity(payload: AntigravityAskRequest):
+    try:
+        p = payload.prompt or payload.message or ""
+        if payload.system_prompt:
+            full_prompt = f"{payload.system_prompt}\n\n{p}"
+        else:
+            full_prompt = p
+        reply = antigravity_agent.ask(full_prompt, timeout_sec=payload.timeout)
+        return {
+            "success": True,
+            "reply": reply
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def _setup_pty_process(cmd: List[str], env: Dict[str, str], cwd: str, rows: int = 24, cols: int = 80):
