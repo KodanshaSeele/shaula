@@ -611,6 +611,45 @@ textarea {
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
+/* Indicador de Pulso e Shimmer para Processamento Ativo */
+.pulse-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #38bdf8;
+  display: inline-block;
+  animation: pulse-ring 1.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+  70% { transform: scale(1.2); box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
+  100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}
+
+.progress-bar-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer-slide 1.5s infinite;
+}
+
+@keyframes shimmer-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* Toggle de Casos (Com Visão / Sem Visão) */
 .case-toggle-container {
   display: flex;
@@ -864,6 +903,27 @@ textarea {
           <button type="button" id="btn-analyze-ingest" class="btn-block" style="background: var(--accent); box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);">
             <span>🔍 Avaliar com Gemini (OCR & Banco) & Revisar</span>
           </button>
+
+          <!-- BARRA DE PROGRESSO & DIAGNÓSTICO EM TEMPO REAL -->
+          <div id="ingest-progress-container" style="display: none; margin-top: 12px; background: rgba(19, 20, 27, 0.95); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: 8px; padding: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="ingest-spinner-icon" class="pulse-dot"></span>
+                <span id="ingest-step-title" style="font-size: calc(var(--base-font-size) * 0.85); font-weight: 600; color: #fff;">Iniciando análise...</span>
+              </div>
+              <span id="ingest-timer-badge" style="font-size: calc(var(--base-font-size) * 0.75); font-family: var(--font-mono); color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">0.0s</span>
+            </div>
+
+            <!-- Trilho da Barra de Progresso com Shimmer -->
+            <div class="progress-track" style="width: 100%; height: 10px; background: #1f202b; border-radius: 999px; overflow: hidden; position: relative;">
+              <div id="ingest-progress-fill" class="progress-bar-shimmer" style="width: 0%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #38bdf8, #10b981); border-radius: 999px; transition: width 0.25s ease;"></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+              <span id="ingest-status-subtext" style="font-size: calc(var(--base-font-size) * 0.74); color: var(--text-muted);">Avaliando imagem e cruzando com o Vault...</span>
+              <span id="ingest-percentage-text" style="font-size: calc(var(--base-font-size) * 0.78); font-weight: 700; color: #a78bfa; font-family: var(--font-mono);">0%</span>
+            </div>
+          </div>
 
           <div style="font-size: calc(var(--base-font-size) * 0.78); color: var(--text-muted); text-align: center; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
             <span>🛡️</span>
@@ -1706,8 +1766,54 @@ function initIngest() {
     const targetFolder = document.getElementById("capture-target-folder")?.value || "auto";
 
     btnAnalyze.disabled = true;
-    btnAnalyze.innerHTML = "<span>⏳ Shaula transcrevendo OCR & cruzando com banco...</span>";
-    statusMsg.innerText = "Transcrevendo texto da imagem com Gemini e cruzando com o banco...";
+    btnAnalyze.innerHTML = "<span>⏳ Shaula processando Visão Multimodal & RAG...</span>";
+    statusMsg.innerText = "Avaliando imagem com Visão da IA e cruzando com o Vault de Nash...";
+
+    const progressContainer = document.getElementById("ingest-progress-container");
+    const progressFill = document.getElementById("ingest-progress-fill");
+    const stepTitle = document.getElementById("ingest-step-title");
+    const timerBadge = document.getElementById("ingest-timer-badge");
+    const subtext = document.getElementById("ingest-status-subtext");
+    const percentageText = document.getElementById("ingest-percentage-text");
+
+    if (progressContainer) {
+      progressContainer.style.display = "block";
+      progressFill.style.width = "5%";
+      progressFill.style.background = "linear-gradient(90deg, #8b5cf6, #38bdf8)";
+      stepTitle.innerText = "Etapa 1/3: Iniciando Visão Multimodal da IA...";
+      subtext.innerText = "Sanitizando arquivo e acionando inspeção visual do Gemini...";
+      percentageText.innerText = "5%";
+      timerBadge.innerText = "0.0s";
+    }
+
+    const startTime = Date.now();
+    let currentPct = 5;
+
+    const progressTimer = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      if (timerBadge) timerBadge.innerText = elapsed.toFixed(1) + "s";
+
+      if (elapsed < 3) {
+        currentPct = Math.min(20, 5 + elapsed * 5);
+        if (stepTitle) stepTitle.innerText = "Etapa 1/3: Sanitizando e preparando imagens...";
+        if (subtext) subtext.innerText = "Convertendo para JPEG HD e abrindo no Gemini...";
+      } else if (elapsed < 16) {
+        currentPct = Math.min(55, 20 + (elapsed - 3) * 2.7);
+        if (stepTitle) stepTitle.innerText = "Etapa 1/3: IA avaliando detalhes visuais da imagem...";
+        if (subtext) subtext.innerText = "Lendo placas de identificação, logotipos e parâmetros técnicos...";
+      } else if (elapsed < 28) {
+        currentPct = Math.min(80, 55 + (elapsed - 16) * 2.1);
+        if (stepTitle) stepTitle.innerText = "Etapa 2/3: Cruzando dados com a RAG do Vault de Nash...";
+        if (subtext) subtext.innerText = "Localizando notas canônicas do ativo (GRBIM) e histórico no cofre...";
+      } else {
+        currentPct = Math.min(94, 80 + (elapsed - 28) * 0.7);
+        if (stepTitle) stepTitle.innerText = "Etapa 3/3: Gemini sintetizando a nota técnica final...";
+        if (subtext) subtext.innerText = "Consolidando dados visuais e SSoT em 2 casos canônicos...";
+      }
+
+      if (progressFill) progressFill.style.width = Math.round(currentPct) + "%";
+      if (percentageText) percentageText.innerText = Math.round(currentPct) + "%";
+    }, 100);
 
     const formData = new FormData();
     formData.append("content", content);
@@ -1720,7 +1826,19 @@ function initIngest() {
       });
       const data = await res.json();
 
+      clearInterval(progressTimer);
+      const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      if (timerBadge) timerBadge.innerText = totalElapsed + "s";
+
       if (res.ok && data.success) {
+        if (progressFill) {
+          progressFill.style.width = "100%";
+          progressFill.style.background = "#10b981";
+        }
+        if (percentageText) percentageText.innerText = "100%";
+        if (stepTitle) stepTitle.innerText = "✅ Avaliação e RAG Concluídas!";
+        if (subtext) subtext.innerText = `Processado em ${totalElapsed}s. Confira os dados abaixo e aprove.`;
+
         analysisResult = data;
         activeCaseMode = (selectedImages.length > 0) ? "vision" : "text";
 
@@ -1780,10 +1898,20 @@ function initIngest() {
         valCard.scrollIntoView({ behavior: "smooth", block: "start" });
         statusMsg.innerText = "✔ Avaliação e OCR concluídos. Confira os dados e aprove abaixo para gravar.";
       } else {
+        clearInterval(progressTimer);
+        if (progressFill) { progressFill.style.width = "100%"; progressFill.style.background = "#ef4444"; }
+        if (percentageText) percentageText.innerText = "Falha";
+        if (stepTitle) stepTitle.innerText = "⚠️ Falha na Avaliação";
+        if (subtext) subtext.innerText = data.detail || "Não foi possível concluir a análise.";
         showToast("Erro na avaliação: " + (data.detail || "Falha"));
         statusMsg.innerText = "Erro ao avaliar.";
       }
     } catch (err) {
+      clearInterval(progressTimer);
+      if (progressFill) { progressFill.style.width = "100%"; progressFill.style.background = "#ef4444"; }
+      if (percentageText) percentageText.innerText = "Erro";
+      if (stepTitle) stepTitle.innerText = "⚠️ Erro de Conexão ou Timeout";
+      if (subtext) subtext.innerText = err.message || "Conexão interrompida. Tente novamente.";
       showToast("Erro de conexão: " + err.message);
       statusMsg.innerText = "Erro de conexão.";
     } finally {
@@ -1869,6 +1997,7 @@ function initIngest() {
         selectedImages = [];
         renderGallery();
         valCard.style.display = "none";
+        if (progressContainer) progressContainer.style.display = "none";
         statusMsg.innerText = `✔ Alocada com sucesso em ${data.path}`;
         analysisResult = null;
         
@@ -1887,6 +2016,8 @@ function initIngest() {
   // 3. Descartar / Recomeçar
   btnDiscard?.addEventListener("click", () => {
     valCard.style.display = "none";
+    const progC = document.getElementById("ingest-progress-container");
+    if (progC) progC.style.display = "none";
     analysisResult = null;
     statusMsg.innerText = "Avaliação descartada. Digite uma nova anotação.";
     document.getElementById("capture-card").scrollIntoView({ behavior: "smooth" });
