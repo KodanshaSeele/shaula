@@ -435,13 +435,13 @@ function initIngest() {
     const hasImages = selectedImages.length > 0;
 
     if (hasImages && content) {
-      btnAnalyze.innerHTML = "<span>⚡ Salvar Imagem + Nota (Gemini Auto-Aprovação)</span>";
+      btnAnalyze.innerHTML = "<span>🔍 Avaliar Imagem + Nota (OCR & Banco) & Revisar</span>";
     } else if (hasImages && !content) {
-      btnAnalyze.innerHTML = "<span>🔍 Analisar Imagem & Cruzar com Banco (Gemini)</span>";
+      btnAnalyze.innerHTML = "<span>🔍 Avaliar Imagem (OCR & Banco) & Revisar</span>";
     } else if (!hasImages && content) {
-      btnAnalyze.innerHTML = "<span>📝 Salvar Nota (Gemini Auto-Aprovação)</span>";
+      btnAnalyze.innerHTML = "<span>📝 Avaliar Nota & Revisar</span>";
     } else {
-      btnAnalyze.innerHTML = "<span>⚡ Salvar com Shaula (Gemini Auto-Aprovação)</span>";
+      btnAnalyze.innerHTML = "<span>🔍 Avaliar com Gemini (OCR & Banco) & Revisar</span>";
     }
   }
 
@@ -523,7 +523,7 @@ function initIngest() {
     document.getElementById("val-markdown").value = analysisResult.case_without_vision || "";
   });
 
-  // 1. Processar Ingestão (Auto-Aprovação Direta ou Revisão Manual Opcional)
+  // 1. Processar Ingestão (Avaliação de OCR & Cruzamento com Banco - Aprovação Humana Obrigatória)
   btnAnalyze?.addEventListener("click", async () => {
     const content = document.getElementById("note-content").value.trim();
 
@@ -532,94 +532,11 @@ function initIngest() {
       return;
     }
 
-    const isManual = document.getElementById("chk-manual-review")?.checked;
     const targetFolder = document.getElementById("capture-target-folder")?.value || "auto";
 
-    // MODO PADRÃO: AUTO-APROVAÇÃO DIRETA POR GEMINI (SEM LENTIDÃO / SEM INTERRUPÇÃO)
-    if (!isManual) {
-      btnAnalyze.disabled = true;
-      btnAnalyze.innerHTML = "<span>⏳ Shaula processando, aprovando & salvando...</span>";
-      statusMsg.innerText = "Sanitizando fotos, avaliando com Gemini e gravando diretamente no cofre...";
-
-      const formData = new FormData();
-      formData.append("content", content);
-      formData.append("target_folder", targetFolder);
-      selectedImages.forEach(img => formData.append("images", img));
-
-      try {
-        const res = await fetch(BASE_PATH + "api/ingest/auto", {
-          method: "POST",
-          body: formData
-        });
-        const data = await res.json();
-
-        if (res.ok && data.success) {
-          const modeLabel = data.case_mode === "vision" ? "👁️ Visão Computacional" : "📄 Síntese Textual";
-          showToast(`🎉 Nota aprovada e gravada em ${data.folder}!`);
-
-          // Exibe card de sucesso com resumo e preview
-          const successCard = document.getElementById("saved-success-card");
-          if (successCard) {
-            document.getElementById("saved-note-title").innerText = data.title || "Nota Gravada";
-            document.getElementById("saved-note-path").innerText = `📄 ${data.path}`;
-            document.getElementById("saved-reasoning-text").innerText = data.reasoning || "Shaula alocou automaticamente no destino canônico.";
-            document.getElementById("saved-note-preview").innerText = data.content || "";
-
-            const metaBox = document.getElementById("saved-assets-meta");
-            if (metaBox) {
-              if (data.assets_metadata && data.assets_metadata.length > 0) {
-                metaBox.style.display = "inline-flex";
-                metaBox.innerText = data.assets_metadata.map(m => `📷 ${m.filename} (${m.width}x${m.height} • ${m.size_kb} KB • ${m.format})`).join(" | ");
-              } else {
-                metaBox.style.display = "none";
-              }
-            }
-
-            // Bloco de Cruzamento com Banco de Dados PCM & Grimorium
-            const dbBox = document.getElementById("saved-db-crossref-box");
-            const dbText = document.getElementById("saved-db-crossref-text");
-            if (dbBox && dbText) {
-              if (data.database_crossref && data.database_crossref.has_match) {
-                dbBox.style.display = "block";
-                dbText.innerText = data.database_crossref.summary_context || "Ativo identificado no banco.";
-              } else if (data.database_crossref && data.database_crossref.summary_context) {
-                dbBox.style.display = "block";
-                dbText.innerText = data.database_crossref.summary_context;
-              } else {
-                dbBox.style.display = "none";
-              }
-            }
-
-            successCard.style.display = "flex";
-            successCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
-          }
-
-          // Limpa campos imediatamente para o operador continuar
-          document.getElementById("note-content").value = "";
-          selectedImages = [];
-          renderGallery();
-          valCard.style.display = "none";
-          statusMsg.innerText = `✔ Alocada automaticamente com sucesso em ${data.path} (${modeLabel})`;
-
-          initStats();
-        } else {
-          showToast("Erro ao processar: " + (data.detail || "Falha"));
-          statusMsg.innerText = "Erro no processamento automático.";
-        }
-      } catch (err) {
-        showToast("Erro de conexão: " + err.message);
-        statusMsg.innerText = "Erro de conexão.";
-      } finally {
-        btnAnalyze.disabled = false;
-        updateIngestButtonLabel();
-      }
-      return;
-    }
-
-    // MODO MANUAL: HUMAN-IN-THE-LOOP (Apenas se o checkbox de revisão for marcado)
     btnAnalyze.disabled = true;
-    btnAnalyze.innerHTML = "<span>⏳ Shaula avaliando nota e fotos...</span>";
-    statusMsg.innerText = "Sanitizando JPGs e avaliando propostas...";
+    btnAnalyze.innerHTML = "<span>⏳ Shaula transcrevendo OCR & cruzando com banco...</span>";
+    statusMsg.innerText = "Transcrevendo texto da imagem com Gemini e cruzando com o banco...";
 
     const formData = new FormData();
     formData.append("content", content);
@@ -641,7 +558,7 @@ function initIngest() {
         document.getElementById("val-reasoning-text").innerText = data.reasoning || "Shaula cruzou os dados com o cofre de Nash.";
         document.getElementById("val-markdown").value = (activeCaseMode === "vision" ? data.case_with_vision : data.case_without_vision) || data.canonical_markdown || "";
 
-        // Reset do toggle
+        // Reset do toggle de casos
         if (activeCaseMode === "vision") {
           btnCaseVision?.classList.add("active");
           btnCaseText?.classList.remove("active");
@@ -690,7 +607,7 @@ function initIngest() {
 
         valCard.style.display = "flex";
         valCard.scrollIntoView({ behavior: "smooth", block: "start" });
-        statusMsg.innerText = "✔ Avaliação concluída. Escolha o caso desejado e aprove abaixo.";
+        statusMsg.innerText = "✔ Avaliação e OCR concluídos. Confira os dados e aprove abaixo para gravar.";
       } else {
         showToast("Erro na avaliação: " + (data.detail || "Falha"));
         statusMsg.innerText = "Erro ao avaliar.";
@@ -710,7 +627,7 @@ function initIngest() {
     if (successCard) successCard.style.display = "none";
   });
 
-  // 2. Aprovar e Alocar no Destino Final
+  // 2. Aprovar e Alocar no Destino Final (Aprovação Humana Mandatória)
   btnApprove?.addEventListener("click", async () => {
     const title = document.getElementById("val-title").value.trim();
     const targetFolder = document.getElementById("val-target-folder").value;
@@ -722,7 +639,7 @@ function initIngest() {
     }
 
     btnApprove.disabled = true;
-    btnApprove.innerHTML = "<span>⏳ Shaula gravando no destino final...</span>";
+    btnApprove.innerHTML = "<span>⏳ Shaula gravando no cofre...</span>";
 
     try {
       const res = await fetch(BASE_PATH + "api/ingest/approve", {
@@ -739,12 +656,50 @@ function initIngest() {
       if (res.ok && data.success) {
         const modeLabel = activeCaseMode === "vision" ? "Com Visão" : "Sem Visão";
         showToast(`🎉 Nota aprovada (${modeLabel}) e gravada em ${data.folder}!`);
+
+        // Exibe card de sucesso com resumo e dados do cruzamento
+        const successCard = document.getElementById("saved-success-card");
+        if (successCard) {
+          document.getElementById("saved-note-title").innerText = data.title || title;
+          document.getElementById("saved-note-path").innerText = `📄 ${data.path}`;
+          document.getElementById("saved-reasoning-text").innerText = (analysisResult && analysisResult.reasoning) || "Nota conferida e aprovada pelo operador.";
+          document.getElementById("saved-note-preview").innerText = markdownContent || "";
+
+          const metaBox = document.getElementById("saved-assets-meta");
+          if (metaBox) {
+            if (analysisResult && analysisResult.assets_metadata && analysisResult.assets_metadata.length > 0) {
+              metaBox.style.display = "inline-flex";
+              metaBox.innerText = analysisResult.assets_metadata.map(m => `📷 ${m.filename} (${m.width}x${m.height} • ${m.size_kb} KB • ${m.format})`).join(" | ");
+            } else {
+              metaBox.style.display = "none";
+            }
+          }
+
+          // Bloco de Cruzamento com Banco de Dados PCM & Grimorium
+          const dbBox = document.getElementById("saved-db-crossref-box");
+          const dbText = document.getElementById("saved-db-crossref-text");
+          if (dbBox && dbText) {
+            if (analysisResult && analysisResult.database_crossref && analysisResult.database_crossref.has_match) {
+              dbBox.style.display = "block";
+              dbText.innerText = analysisResult.database_crossref.summary_context || "Ativo identificado no banco.";
+            } else if (analysisResult && analysisResult.database_crossref && analysisResult.database_crossref.summary_context) {
+              dbBox.style.display = "block";
+              dbText.innerText = analysisResult.database_crossref.summary_context;
+            } else {
+              dbBox.style.display = "none";
+            }
+          }
+
+          successCard.style.display = "flex";
+          successCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
         
         document.getElementById("note-content").value = "";
         selectedImages = [];
         renderGallery();
         valCard.style.display = "none";
         statusMsg.innerText = `✔ Alocada com sucesso em ${data.path}`;
+        analysisResult = null;
         
         initStats();
       } else {

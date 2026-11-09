@@ -174,19 +174,38 @@ def analyze_and_cross_reference(
     images_block = "\n".join([f"![[{p}]]" for p in asset_rel_paths])
     effective_content = raw_content.strip() or ("Registro visual de equipamento e imagem industrial." if asset_rel_paths else "Registro de nota técnica.")
 
-    # JPL-CP-10: Contexto delimitado e cirúrgico de projetos
-    projects_context = _select_relevant_projects(effective_content, max_projects=12)
+    # 1. OCR Multimodal de Alta Precisão via Gemini (leitura direta de arquivos de imagem)
+    ocr_transcript = ""
+    if asset_rel_paths:
+        abs_image_paths = [str((VAULT_PATH / p).resolve()) for p in asset_rel_paths]
+        images_list_str = "\n".join([f"- {p}" for p in abs_image_paths])
+        ocr_prompt = f"""Use a ferramenta de leitura de arquivos (read_file) para abrir e inspecionar cada uma das seguintes imagens:
+{images_list_str}
 
-    # Cruzamento com banco de dados industrial PCM e Grimorium
+Transcreva com fidelidade e exatidão absoluta todo o texto, placas de identificação, logotipos (ex: GREE), códigos de moldes, modelos, números de ferramentas/dispositivos (ex: JM...), dimensões, pesos (T), datas e passos de alimentação visíveis nas fotos.
+Forneça a transcrição literal (OCR exato) e organize os parâmetros técnicos em uma tabela detalhada.
+NÃO resuma nem omita códigos ou números técnicos."""
+        ocr_reply = _invoke_agy(ocr_prompt, timeout_sec=45)
+        if ocr_reply and len(ocr_reply.strip()) > 15:
+            ocr_transcript = ocr_reply.strip()
+
+    # 2. Contexto delimitado e cirúrgico de projetos no cofre
+    combined_search_text = (effective_content + "\n" + ocr_transcript).strip()
+    projects_context = _select_relevant_projects(combined_search_text, max_projects=12)
+
+    # 3. Cruzamento com banco de dados industrial PCM e Grimorium
     search_names = [Path(p).name for p in asset_rel_paths]
     if original_filenames:
         search_names.extend(original_filenames)
 
     db_cross = cross_reference_database(
-        text_content=effective_content,
+        text_content=combined_search_text,
         filenames=search_names
     )
     db_context = db_cross.get("summary_context", "Sem correspondência direta no banco.")
+
+    # 4. Síntese com Shaula
+    ocr_section_in_prompt = f"\n\nTranscrição Literal e Detalhada de OCR das Imagens (já verificadas):\n{ocr_transcript}\n" if ocr_transcript else ""
 
     prompt = f"""Você é Shaula, o Cérebro Cognitivo e Motor de Raciocínio do Vault de Nash.
 O operador inseriu uma captura com anotações e fotos anexadas (sanitizadas em formato JPG HD 75%).
@@ -207,10 +226,10 @@ Captura Bruta:
 {effective_content}
 
 Imagens Anexadas (já sanitizadas em assets/):
-{images_block}
+{images_block}{ocr_section_in_prompt}
 
 Diretrizes Obrigatórias:
-1. CASO 1 (com_visao): Aplique Visão Computacional profunda. Descreva/transcreva dados objetivos visíveis nas imagens (OCR de placas, modelos, pressões, gráficos ou etiquetas), incorporando-os diretamente em Fatos e Dados Fundamentais e Detalhes.
+1. CASO 1 (com_visao): Incorpore fielmente a transcrição literal do OCR da placa e a tabela de parâmetros técnicos diretamente em Fatos e Dados Fundamentais e na seção de Análise Visual & OCR.
 2. CASO 2 (sem_visao): Síntese estritamente textual focada apenas no relato do operador e no cruzamento com os projetos, mantendo a foto apenas como link de anexo comprobatório no rodapé, sem expansão descritiva de visão.
 3. Em AMBOS os casos, use autor: "Shaula" no frontmatter YAML e respeite rigorosamente o layout canônico.
 4. Responda ESTRITAMENTE em formato JSON com as chaves:
@@ -225,7 +244,7 @@ Diretrizes Obrigatórias:
 }}
 """
 
-    gemini_reply = _invoke_agy(prompt, timeout_sec=65)
+    gemini_reply = _invoke_agy(prompt, timeout_sec=50)
     
     parsed = {}
     if gemini_reply:
@@ -236,11 +255,11 @@ Diretrizes Obrigatórias:
             except Exception:
                 pass
 
-    proposed_title = parsed.get("proposed_title") or _infer_title_fast(effective_content, asset_rel_paths, now_id)
-    target_folder = parsed.get("target_folder") or _infer_folder_fast(effective_content)
+    proposed_title = parsed.get("proposed_title") or _infer_title_fast(effective_content, asset_rel_paths, now_id, ocr_transcript)
+    target_folder = parsed.get("target_folder") or _infer_folder_fast(combined_search_text)
     target_project = parsed.get("target_project") or "[[Work/Projects/Manutencao-Gree]]"
     tags = parsed.get("tags") or ["captura", "memoria"]
-    reasoning = parsed.get("reasoning") or "Shaula avaliou e cruzou os dados com o cofre de Nash."
+    reasoning = parsed.get("reasoning") or "Shaula avaliou o OCR visual e cruzou os dados com o cofre de Nash."
 
     case_with_vision = parsed.get("case_with_vision")
     case_without_vision = parsed.get("case_without_vision")
@@ -255,7 +274,8 @@ Diretrizes Obrigatórias:
             images_block=images_block,
             project=target_project,
             tags=tags,
-            db_context=db_context
+            db_context=db_context,
+            ocr_transcript=ocr_transcript
         )
 
     if not case_without_vision or not case_without_vision.startswith("---"):
@@ -278,6 +298,7 @@ Diretrizes Obrigatórias:
         "tags": tags,
         "reasoning": reasoning,
         "database_crossref": db_cross,
+        "ocr_transcript": ocr_transcript,
         "case_with_vision": case_with_vision,
         "case_without_vision": case_without_vision,
         "canonical_markdown": case_with_vision, # default ativo
@@ -293,12 +314,19 @@ def _build_case_with_vision(
     images_block: str,
     project: str,
     tags: List[str],
-    db_context: str = ""
+    db_context: str = "",
+    ocr_transcript: str = ""
 ) -> str:
     proj_link = f"- \"{project}\"" if project.startswith("[[") else f"- \"[[Work/Projects/{project}]]\""
     tag_lines = "\n".join([f"  - {t}" for t in tags])
     db_section = f"\n\n## 🏭 Dados de Ativo / PCM\n{db_context}\n" if (db_context and "Sem correspondência" not in db_context) else ""
     
+    content_section = ""
+    if raw_content and raw_content != "Registro visual de equipamento e imagem industrial.":
+        content_section = f"### Relato do Operador\n{raw_content}\n\n"
+
+    ocr_section = f"### Análise Visual & OCR (Shaula Vision)\n{ocr_transcript}\n" if ocr_transcript else (f"### Análise Visual & OCR (Shaula Vision)\n{raw_content}\n" if not content_section else "")
+
     return f"""---
 id: "{now_id}"
 title: "{title}"
@@ -328,9 +356,7 @@ Registro com análise multimodal e Visão Computacional realizado por Shaula.
 ## 📝 Registro de Detalhes / Conteúdo
 {images_block}
 
-### Análise Visual & OCR (Shaula Vision)
-{raw_content}
-
+{content_section}{ocr_section}
 ## ⏱️ Histórico de Atualizações / Log de Processamento
 - {today} — [Shaula]: Analisado com Visão Computacional e aprovado pelo operador.
 """
@@ -428,12 +454,19 @@ def approve_and_save_note(
     }
 
 
-def _infer_title_fast(raw: str, assets: List[str], fallback_id: str) -> str:
+def _infer_title_fast(raw: str, assets: List[str], fallback_id: str, ocr: str = "") -> str:
     lines = [l.strip() for l in raw.splitlines() if l.strip()]
     if lines:
         first = lines[0].lstrip("#").strip()
-        if len(first) > 3:
+        if len(first) > 3 and "Registro visual de equipamento" not in first:
             return first[:60]
+    if ocr:
+        m_code = re.search(r"\b(JM[0-9/]+|GRB[A-Z0-9]+|Φ[0-9A-Za-z]+)\b", ocr)
+        if m_code:
+            clean_code = re.sub(r"[^A-Za-z0-9_-]", "_", m_code.group(0))
+            return f"Placa_{clean_code}_{fallback_id[-6:]}"
+        if "GREE" in ocr.upper():
+            return f"GREE_Placa_Equipamento_{fallback_id[-6:]}"
     if assets:
         return f"Registro Visual {fallback_id}"
     return f"Captura {fallback_id}"
