@@ -271,6 +271,31 @@ def serve_vault_asset(filename: str):
     return FileResponse(asset_file, media_type="image/jpeg")
 
 
+@app.post("/api/terminal/upload-image")
+@app.post("/desk/api/terminal/upload-image")
+async def terminal_upload_image(image: UploadFile = File(...)):
+    """Upload rápido de imagem a partir do terminal, salva em assets/ e retorna os caminhos."""
+    try:
+        data = await image.read()
+        if not data:
+            raise HTTPException(status_code=400, detail="Arquivo de imagem vazio.")
+        abs_path, rel_path, sha256, meta = save_asset(data, image.filename or "term_upload.jpg")
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "filename": abs_path.name,
+                "rel_path": rel_path,
+                "abs_path": str(abs_path),
+                "width": meta.get("width"),
+                "height": meta.get("height"),
+                "size_kb": meta.get("size_kb")
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/ingest/auto")
 @app.post("/desk/api/ingest/auto")
 async def auto_ingest_endpoint(

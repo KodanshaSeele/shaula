@@ -824,6 +824,9 @@ textarea {
       <section id="view-terminal" class="screen-view active">
         <!-- Virtual Toolbar Mobile -->
         <div class="terminal-mobile-toolbar">
+          <button class="tool-key" id="btn-attach-image-term" style="background: rgba(59, 130, 246, 0.2); border-color: var(--accent); color: #93c5fd;" title="Escolher imagem para upload e inserir caminho">📎 Anexar Imagem</button>
+          <button class="tool-key" id="btn-paste-term" style="background: rgba(16, 185, 129, 0.2); border-color: #34d399; color: #6ee7b7;" title="Colar texto ou imagem da área de transferência">📋 Colar</button>
+          <input type="file" id="term-image-input" accept="image/*" style="display: none;">
           <button class="tool-key" data-key="ESC">ESC</button>
           <button class="tool-key" data-key="TAB">TAB</button>
           <button class="tool-key" data-key="CTRL_C">Ctrl+C</button>
@@ -833,6 +836,22 @@ textarea {
           <button class="tool-key" data-cmd="listar mocs\r">📁 MOCs</button>
           <button class="tool-key" id="btn-clear-term">🧹 Limpar</button>
         </div>
+
+        <!-- Banner de Imagem Anexada Recente -->
+        <div id="term-attached-preview" style="display: none; align-items: center; justify-content: space-between; background: var(--bg-card); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; font-size: calc(var(--base-font-size) * 0.75);">
+          <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+            <img id="term-attached-thumb" src="" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border);" alt="Preview">
+            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <span style="color: #93c5fd; font-weight: 700;">📎 Imagem Anexada:</span><br>
+              <code id="term-attached-path" style="color: var(--text-main); font-size: 0.72rem;"></code>
+            </div>
+          </div>
+          <div style="display: flex; gap: 4px; flex-shrink: 0;">
+            <button id="btn-term-insert-path" class="tool-key" style="padding: 4px 8px; font-size: 0.72rem; background: var(--accent); color: #fff;">+ Inserir</button>
+            <button id="btn-term-dismiss-thumb" class="tool-key" style="padding: 4px 8px; font-size: 0.72rem;">✖</button>
+          </div>
+        </div>
+
         <div id="terminal-box"></div>
       </section>
 
@@ -1536,8 +1555,8 @@ function initTerminal() {
     }
   });
 
-  // Mobile Virtual Toolbar
-  document.querySelectorAll(".tool-key").forEach(btn => {
+  // Mobile Virtual Toolbar (Atalhos de Teclado e Comandos)
+  document.querySelectorAll(".tool-key[data-key], .tool-key[data-cmd]").forEach(btn => {
     btn.addEventListener("click", () => {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       const key = btn.dataset.key;
@@ -1560,9 +1579,142 @@ function initTerminal() {
     });
   });
 
+  // Botão Colar na tela do terminal
+  document.getElementById("btn-paste-term")?.addEventListener("click", () => {
+    pasteToTerminal();
+  });
+
+  // Botão Anexar Imagem na tela do terminal
+  const btnAttach = document.getElementById("btn-attach-image-term");
+  const inputImg = document.getElementById("term-image-input");
+  btnAttach?.addEventListener("click", () => {
+    inputImg?.click();
+  });
+
+  inputImg?.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files[0]) {
+      uploadTermImageFile(e.target.files[0]);
+    }
+  });
+
+  // Ações do banner de imagem anexada
+  document.getElementById("btn-term-insert-path")?.addEventListener("click", () => {
+    if (lastAttachedPath && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(lastAttachedPath + " ");
+      term.focus();
+      showToast("➕ Caminho reinserido no terminal!");
+    }
+  });
+
+  document.getElementById("btn-term-dismiss-thumb")?.addEventListener("click", () => {
+    const banner = document.getElementById("term-attached-preview");
+    if (banner) banner.style.display = "none";
+  });
+
   document.getElementById("btn-clear-term")?.addEventListener("click", () => {
     term.clear();
   });
+}
+
+let lastAttachedPath = "";
+
+async function pasteToTerminal() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    showToast("⚠️ Terminal não conectado.");
+    return;
+  }
+
+  // Tenta ler imagem da área de transferência se suportado
+  if (navigator.clipboard && navigator.clipboard.read) {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find(t => t.startsWith("image/"));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          uploadTermImageFile(blob, "colar_clipboard.png");
+          return;
+        }
+      }
+    } catch (e) {
+      // Ignora e faz fallback para readText
+    }
+  }
+
+  // Leitura de texto da área de transferência
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        ws.send(text);
+        if (term) term.focus();
+        showToast("📋 Texto colado no terminal!");
+        return;
+      }
+    } catch (err) {
+      console.warn("Clipboard readText restrito, usando fallback:", err);
+    }
+  }
+
+  // Fallback seguro universal para navegadores móveis com restrição
+  const fallback = prompt("Cole o texto para enviar ao terminal:");
+  if (fallback) {
+    ws.send(fallback);
+    if (term) term.focus();
+    showToast("📋 Texto enviado ao terminal!");
+  }
+}
+
+async function uploadTermImageFile(file, defaultName = "upload.jpg") {
+  if (!file) return;
+  const btnAttach = document.getElementById("btn-attach-image-term");
+  const prevHtml = btnAttach ? btnAttach.innerHTML : "";
+  if (btnAttach) {
+    btnAttach.disabled = true;
+    btnAttach.innerHTML = `<span class="pulse-dot"></span> Enviando...`;
+  }
+
+  try {
+    const fd = new FormData();
+    const fname = file.name || defaultName;
+    fd.append("image", file, fname);
+
+    const res = await fetch(BASE_PATH + "api/terminal/upload-image", {
+      method: "POST",
+      body: fd
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Falha ao enviar imagem");
+
+    lastAttachedPath = data.rel_path;
+
+    // Digita automaticamente o caminho no terminal se conectado
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(data.rel_path + " ");
+      if (term) term.focus();
+    }
+
+    // Exibe banner de prévia retrátil acima do terminal
+    const banner = document.getElementById("term-attached-preview");
+    const thumb = document.getElementById("term-attached-thumb");
+    const pathEl = document.getElementById("term-attached-path");
+    if (banner && thumb && pathEl) {
+      thumb.src = `${BASE_PATH}api/assets/${data.filename}`;
+      pathEl.innerText = data.rel_path;
+      banner.style.display = "flex";
+    }
+
+    showToast(`📎 Imagem salva em ${data.rel_path} e inserida no terminal!`);
+  } catch (err) {
+    showToast(`✖ Erro ao anexar imagem: ${err.message}`);
+  } finally {
+    if (btnAttach) {
+      btnAttach.disabled = false;
+      btnAttach.innerHTML = prevHtml || "📎 Anexar Imagem";
+    }
+    const input = document.getElementById("term-image-input");
+    if (input) input.value = "";
+  }
 }
 
 function connectTerminalWs() {
