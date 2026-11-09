@@ -164,11 +164,27 @@ def analyze_and_cross_reference(
     original_filenames: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
-    Avalia a nota bruta e fotos, cruza os dados com o cofre de Nash sob o nome Shaula,
-    e produz 2 CASOS de proposta canônica:
-    - Caso 1: Com Visão Computacional (Shaula Vision / OCR enriquecido)
-    - Caso 2: Sem Visão Computacional (Shaula Texto Puro / Síntese leve)
+    Avalia a nota bruta e fotos, cruza os dados com o cofre de Nash,
+    utilizando prioritariamente o Motor Determinístico Local (100% sem IA).
+    Produz 2 CASOS de proposta canônica:
+    - Caso 1: Com Visão (Estrutura Técnica / Parâmetros / SSoT)
+    - Caso 2: Sem Visão (Texto Puro do Operador)
     """
+    # 0. Motor Determinístico Local (Zero-IA / High-Speed)
+    use_deterministic = os.environ.get("NASH_USE_DETERMINISTIC", "true").lower() in ("true", "1", "yes")
+    if use_deterministic:
+        try:
+            from .deterministic_engine import process_deterministic_analysis
+            det_res = process_deterministic_analysis(
+                raw_content=raw_content,
+                asset_rel_paths=asset_rel_paths,
+                original_filenames=original_filenames
+            )
+            if det_res.get("success"):
+                return det_res
+        except Exception:
+            pass
+
     now_id = datetime.now().strftime("%Y%m%d%H%M%S")
     today = datetime.now().strftime("%Y-%m-%d")
     images_block = "\n".join([f"![[{p}]]" for p in asset_rel_paths])
