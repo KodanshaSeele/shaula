@@ -158,168 +158,230 @@ def _select_relevant_projects(raw_content: str, max_projects: int = 12) -> str:
     return ", ".join(matched)
 
 
+def query_vault_rag(search_text: str, max_results: int = 4) -> Dict[str, Any]:
+    """
+    Motor RAG do Vault de Nash (JPL-CP-10 Compliant): busca notas técnicas,
+    ativos industriais e histórico no cofre com base na avaliação visual do Gemini.
+    """
+    if not VAULT_PATH.exists() or not search_text.strip():
+        return {"has_match": False, "matched_notes": [], "summary_context": ""}
+
+    tokens = set()
+    for m in re.findall(r"[A-Za-z0-9]+/[A-Za-z0-9]+", search_text):
+        tokens.add(m)
+        tokens.add(m.split("/")[0])
+        tokens.add(m.split("/")[1])
+    for m in re.findall(r"\b[A-Za-z0-9]{3,}\b", search_text):
+        if not m.isdigit() or len(m) >= 3:
+            tokens.add(m.upper())
+
+    priority_tokens = [t for t in tokens if re.search(r"^(JM|GRB|GBR|8DX|201|285|ALETA|MOLDE|INJETORA)", t, re.IGNORECASE)]
+    search_list = (priority_tokens + list(tokens))[:12]
+
+    candidates = []
+    for f in VAULT_PATH.rglob("*.md"):
+        rel = str(f.relative_to(VAULT_PATH))
+        if any(skip in rel for skip in [".git", "System/Archive", "Media", ".backups", "00 - Inbox"]):
+            continue
+        try:
+            content = f.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+
+        score = sum(10 if t in priority_tokens else 3 for t in search_list if t.lower() in content.lower())
+        if score > 0:
+            candidates.append((score, rel, content[:1500]))
+
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    if not candidates:
+        return {"has_match": False, "matched_notes": [], "summary_context": "Sem notas correlatas prévias no cofre."}
+
+    matched_notes = []
+    context_lines = []
+    for score, rel, excerpt in candidates[:max_results]:
+        matched_notes.append(rel)
+        lines = [l for l in excerpt.splitlines() if l.startswith("#") or l.startswith("- **") or l.startswith("|")][:6]
+        context_lines.append(f"Nota [[{rel}]]:\n" + "\n".join(lines))
+
+    return {
+        "has_match": True,
+        "matched_notes": matched_notes,
+        "summary_context": "\n\n".join(context_lines)
+    }
+
+
+def _evaluate_image_vision(asset_rel_paths: List[str]) -> str:
+    """FASE 1: Inspeciona imagens diretamente com a visão multimodal do Gemini (sem OCR)."""
+    if not asset_rel_paths:
+        return ""
+    abs_paths = [str((VAULT_PATH / p).resolve()) for p in asset_rel_paths]
+    img_list = "\n".join([f"- {p}" for p in abs_paths])
+    vision_prompt = f"""Use a ferramenta de leitura de arquivos (read_file) para abrir e inspecionar visualmente cada uma das seguintes imagens:
+{img_list}
+
+Como especialista em visão computacional e engenharia industrial:
+1. Inspecione a imagem detalhadamente com a visão de IA (sem bibliotecas de OCR).
+2. Avalie e transcreva todo o texto visível, placas de identificação, logotipos (ex: GREE), códigos de ferramental (ex: JM...), códigos de moldes, especificações (ex: Φ...), dimensões, pesos (T), datas e passos de alimentação.
+3. Organize todos os parâmetros técnicos e características visuais observadas em uma tabela estruturada.
+NÃO resuma nem omita números técnicos, códigos ou caracteres chineses."""
+    reply = _invoke_agy(vision_prompt, timeout_sec=60)
+    return reply.strip() if (reply and len(reply.strip()) > 15) else ""
+
+
+def _parse_json_reply(reply: str) -> Dict[str, Any]:
+    """Extrai e desserializa JSON embutido na resposta do Gemini."""
+    if not reply:
+        return {}
+    m = re.search(r"\{[\s\S]*\}", reply)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            pass
+    return {}
+
+
+def _synthesize_canonical_cases(
+    gemini_vision_eval: str,
+    vault_rag_context: str,
+    db_context: str,
+    projects_context: str,
+    effective_content: str,
+    images_block: str
+) -> Dict[str, Any]:
+    """FASE 3: Sintetiza nota canônica pelo Gemini com todos os dados consolidados em mãos."""
+    prompt = f"""Você é Shaula, Cérebro Cognitivo do Vault de Nash.
+Captura com imagens industriais analisadas via visão multimodal.
+COM TODOS OS DADOS EM MÃOS (Visão da IA + RAG do Cofre + Relato Operador), gere 2 CASOS:
+
+1. AVALIAÇÃO DE VISÃO COMPUTACIONAL DA IA:
+{gemini_vision_eval or 'Sem imagem ou ilustrativa.'}
+
+2. CONTEXTO RECUPERADO DA RAG DO VAULT DE NASH:
+{vault_rag_context}
+
+3. BANCO INDUSTRIAL (PCM/Grimorium): {db_context}
+4. PROJETOS ATIVOS: {projects_context}
+5. RELATO DO OPERADOR: {effective_content}
+Imagens: {images_block}
+
+Diretrizes:
+1. CASO 1 (com_visao): Incorpore a tabela técnica e parâmetros cruzados com a SSoT do cofre.
+2. CASO 2 (sem_visao): Síntese textual limpa focada no relato e contexto do cofre.
+3. YAML frontmatter padronizado (author: "Shaula", [[Nota]]).
+Responda ESTRITAMENTE em formato JSON com chaves:
+{{
+  "proposed_title": "Titulo descritivo",
+  "target_folder": "Work/Industrial",
+  "target_project": "[[Work/Projects/Manutencao-Gree]]",
+  "tags": ["industrial/molde", "gree"],
+  "reasoning": "Shaula avaliou a imagem via IA, cruzou com o Vault e gerou a nota.",
+  "case_with_vision": "--- Markdown Caso 1 ---",
+  "case_without_vision": "--- Markdown Caso 2 ---"
+}}"""
+    return _parse_json_reply(_invoke_agy(prompt, timeout_sec=60))
+
+
+def _assemble_analysis_response(
+    parsed: Dict[str, Any],
+    effective_content: str,
+    asset_rel_paths: List[str],
+    now_id: str,
+    today: str,
+    gemini_vision_eval: str,
+    combined_search_text: str,
+    db_cross: Dict[str, Any],
+    db_context: str,
+    vault_rag_context: str,
+    images_block: str
+) -> Dict[str, Any]:
+    """Monta a estrutura final de resposta com fallbacks canônicos garantidos."""
+    title = parsed.get("proposed_title") or _infer_title_fast(effective_content, asset_rel_paths, now_id, gemini_vision_eval)
+    folder = parsed.get("target_folder") or _infer_folder_fast(combined_search_text)
+    project = parsed.get("target_project") or "[[Work/Projects/Manutencao-Gree]]"
+    tags = parsed.get("tags") or ["captura", "memoria"]
+    reason = parsed.get("reasoning") or "Shaula avaliou via visão de IA e cruzou com o Vault de Nash."
+
+    case_v = parsed.get("case_with_vision")
+    case_t = parsed.get("case_without_vision")
+    if not case_v or not case_v.startswith("---"):
+        case_v = _build_case_with_vision(now_id, today, title, effective_content, images_block, project, tags, f"{db_context}\n\n{vault_rag_context}", gemini_vision_eval)
+    if not case_t or not case_t.startswith("---"):
+        case_t = _build_case_without_vision(now_id, today, title, effective_content, images_block, project, tags)
+
+    return {
+        "success": True,
+        "agent": "Shaula (Gemini Multimodal + Vault RAG)",
+        "proposed_title": title,
+        "target_folder": folder,
+        "target_project": project,
+        "tags": tags,
+        "reasoning": reason,
+        "database_crossref": db_cross,
+        "vault_rag_context": vault_rag_context,
+        "ocr_transcript": gemini_vision_eval,
+        "case_with_vision": case_v,
+        "case_without_vision": case_t,
+        "canonical_markdown": case_v,
+        "assets_rel_paths": asset_rel_paths
+    }
+
+
 def analyze_and_cross_reference(
     raw_content: str,
     asset_rel_paths: List[str],
     original_filenames: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
-    Avalia a nota bruta e fotos, cruza os dados com o cofre de Nash,
-    utilizando prioritariamente o Motor Determinístico Local (100% sem IA).
-    Produz 2 CASOS de proposta canônica:
-    - Caso 1: Com Visão (Estrutura Técnica / Parâmetros / SSoT)
-    - Caso 2: Sem Visão (Texto Puro do Operador)
+    Pipeline Cognitivo de 3 Fases (Gemini Vision + RAG Vault + Síntese Canônica):
+    1. Gemini avalia diretamente as imagens via Visão de IA (sem bibliotecas de OCR).
+    2. O sistema cruza os parâmetros extraídos com as notas do Vault de Nash (RAG) e PCM.
+    3. Com todos os dados em mãos, o Gemini gera a nota técnica canônica consolidada.
     """
-    # 0. Motor Determinístico Local (Zero-IA / High-Speed)
-    use_deterministic = os.environ.get("NASH_USE_DETERMINISTIC", "true").lower() in ("true", "1", "yes")
-    if use_deterministic:
-        try:
-            from .deterministic_engine import process_deterministic_analysis
-            det_res = process_deterministic_analysis(
-                raw_content=raw_content,
-                asset_rel_paths=asset_rel_paths,
-                original_filenames=original_filenames
-            )
-            if det_res.get("success"):
-                return det_res
-        except Exception:
-            pass
-
     now_id = datetime.now().strftime("%Y%m%d%H%M%S")
     today = datetime.now().strftime("%Y-%m-%d")
     images_block = "\n".join([f"![[{p}]]" for p in asset_rel_paths])
     effective_content = raw_content.strip() or ("Registro visual de equipamento e imagem industrial." if asset_rel_paths else "Registro de nota técnica.")
 
-    # 1. OCR Multimodal de Alta Precisão via Gemini (leitura direta de arquivos de imagem)
-    ocr_transcript = ""
-    if asset_rel_paths:
-        abs_image_paths = [str((VAULT_PATH / p).resolve()) for p in asset_rel_paths]
-        images_list_str = "\n".join([f"- {p}" for p in abs_image_paths])
-        ocr_prompt = f"""Use a ferramenta de leitura de arquivos (read_file) para abrir e inspecionar cada uma das seguintes imagens:
-{images_list_str}
+    # FASE 1: Avaliação de Imagem via Visão Multimodal do Gemini (sem bibliotecas OCR)
+    gemini_vision_eval = _evaluate_image_vision(asset_rel_paths)
 
-Transcreva com fidelidade e exatidão absoluta todo o texto, placas de identificação, logotipos (ex: GREE), códigos de moldes, modelos, números de ferramentas/dispositivos (ex: JM...), dimensões, pesos (T), datas e passos de alimentação visíveis nas fotos.
-Forneça a transcrição literal (OCR exato) e organize os parâmetros técnicos em uma tabela detalhada.
-NÃO resuma nem omita códigos ou números técnicos."""
-        ocr_reply = _invoke_agy(ocr_prompt, timeout_sec=45)
-        if ocr_reply and len(ocr_reply.strip()) > 15:
-            ocr_transcript = ocr_reply.strip()
+    # FASE 2: Cruzamento RAG com o Vault de Nash e Banco Industrial
+    combined_search_text = (effective_content + "\n" + gemini_vision_eval).strip()
+    vault_rag = query_vault_rag(combined_search_text, max_results=4)
+    vault_rag_context = vault_rag.get("summary_context", "Sem notas correlatas prévias no cofre.")
 
-    # 2. Contexto delimitado e cirúrgico de projetos no cofre
-    combined_search_text = (effective_content + "\n" + ocr_transcript).strip()
     projects_context = _select_relevant_projects(combined_search_text, max_projects=12)
-
-    # 3. Cruzamento com banco de dados industrial PCM e Grimorium
     search_names = [Path(p).name for p in asset_rel_paths]
     if original_filenames:
         search_names.extend(original_filenames)
 
-    db_cross = cross_reference_database(
-        text_content=combined_search_text,
-        filenames=search_names
-    )
+    db_cross = cross_reference_database(text_content=combined_search_text, filenames=search_names)
     db_context = db_cross.get("summary_context", "Sem correspondência direta no banco.")
 
-    # 4. Síntese com Shaula
-    ocr_section_in_prompt = f"\n\nTranscrição Literal e Detalhada de OCR das Imagens (já verificadas):\n{ocr_transcript}\n" if ocr_transcript else ""
+    # FASE 3: Síntese Canônica pelo Gemini com Todos os Dados em Mãos
+    parsed = _synthesize_canonical_cases(
+        gemini_vision_eval=gemini_vision_eval,
+        vault_rag_context=vault_rag_context,
+        db_context=db_context,
+        projects_context=projects_context,
+        effective_content=effective_content,
+        images_block=images_block
+    )
 
-    prompt = f"""Você é Shaula, o Cérebro Cognitivo e Motor de Raciocínio do Vault de Nash.
-O operador inseriu uma captura com anotações e fotos anexadas (sanitizadas em formato JPG HD 75%).
-Sua missão é AVALIAR, CRUZAR estes dados com o cofre e o banco industrial e gerar OBRIGATORIAMENTE 2 CASOS:
-
-Contexto do Banco de Dados Industrial (db_pcm.db & curadoria_grimorium.db):
-{db_context}
-
-Contexto de Projetos Ativos no cofre: {projects_context}
-Possíveis Pastas Canônicas:
-- Work/Industrial (máquinas, equipamentos industriais, preventivas, ordens de serviço)
-- Work/Projects (documentos centrais de projetos específicos em andamento)
-- 03 - Knowledge (conhecimento perene, manuais, procedimentos, conceitos, regras)
-- Personal (notas, interesses e registros pessoais)
-- People (contatos, pessoas, fichas individuais)
-
-Captura Bruta:
-{effective_content}
-
-Imagens Anexadas (já sanitizadas em assets/):
-{images_block}{ocr_section_in_prompt}
-
-Diretrizes Obrigatórias:
-1. CASO 1 (com_visao): Incorpore fielmente a transcrição literal do OCR da placa e a tabela de parâmetros técnicos diretamente em Fatos e Dados Fundamentais e na seção de Análise Visual & OCR.
-2. CASO 2 (sem_visao): Síntese estritamente textual focada apenas no relato do operador e no cruzamento com os projetos, mantendo a foto apenas como link de anexo comprobatório no rodapé, sem expansão descritiva de visão.
-3. Em AMBOS os casos, use autor: "Shaula" no frontmatter YAML e respeite rigorosamente o layout canônico.
-4. Responda ESTRITAMENTE em formato JSON com as chaves:
-{{
-  "proposed_title": "Titulo descritivo sem caracteres invalidos",
-  "target_folder": "Work/Industrial",
-  "target_project": "[[Work/Projects/Manutencao-Gree]]",
-  "tags": ["manutencao/injetora", "gree"],
-  "reasoning": "Shaula cruzou os dados com histórico da máquina X no setor de injeção.",
-  "case_with_vision": "--- Markdown completo do Caso 1 (Com Visão Computacional) ---",
-  "case_without_vision": "--- Markdown completo do Caso 2 (Sem Visão Computacional) ---"
-}}
-"""
-
-    gemini_reply = _invoke_agy(prompt, timeout_sec=50)
-    
-    parsed = {}
-    if gemini_reply:
-        m = re.search(r"\{[\s\S]*\}", gemini_reply)
-        if m:
-            try:
-                parsed = json.loads(m.group(0))
-            except Exception:
-                pass
-
-    proposed_title = parsed.get("proposed_title") or _infer_title_fast(effective_content, asset_rel_paths, now_id, ocr_transcript)
-    target_folder = parsed.get("target_folder") or _infer_folder_fast(combined_search_text)
-    target_project = parsed.get("target_project") or "[[Work/Projects/Manutencao-Gree]]"
-    tags = parsed.get("tags") or ["captura", "memoria"]
-    reasoning = parsed.get("reasoning") or "Shaula avaliou o OCR visual e cruzou os dados com o cofre de Nash."
-
-    case_with_vision = parsed.get("case_with_vision")
-    case_without_vision = parsed.get("case_without_vision")
-
-    # Fallbacks determinísticos robustos se o modelo não devolver os dois blocos
-    if not case_with_vision or not case_with_vision.startswith("---"):
-        case_with_vision = _build_case_with_vision(
-            now_id=now_id,
-            today=today,
-            title=proposed_title,
-            raw_content=effective_content,
-            images_block=images_block,
-            project=target_project,
-            tags=tags,
-            db_context=db_context,
-            ocr_transcript=ocr_transcript
-        )
-
-    if not case_without_vision or not case_without_vision.startswith("---"):
-        case_without_vision = _build_case_without_vision(
-            now_id=now_id,
-            today=today,
-            title=proposed_title,
-            raw_content=effective_content,
-            images_block=images_block,
-            project=target_project,
-            tags=tags
-        )
-
-    return {
-        "success": True,
-        "agent": "Shaula",
-        "proposed_title": proposed_title,
-        "target_folder": target_folder,
-        "target_project": target_project,
-        "tags": tags,
-        "reasoning": reasoning,
-        "database_crossref": db_cross,
-        "ocr_transcript": ocr_transcript,
-        "case_with_vision": case_with_vision,
-        "case_without_vision": case_without_vision,
-        "canonical_markdown": case_with_vision, # default ativo
-        "assets_rel_paths": asset_rel_paths
-    }
+    return _assemble_analysis_response(
+        parsed=parsed,
+        effective_content=effective_content,
+        asset_rel_paths=asset_rel_paths,
+        now_id=now_id,
+        today=today,
+        gemini_vision_eval=gemini_vision_eval,
+        combined_search_text=combined_search_text,
+        db_cross=db_cross,
+        db_context=db_context,
+        vault_rag_context=vault_rag_context,
+        images_block=images_block
+    )
 
 
 def _build_case_with_vision(
