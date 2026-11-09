@@ -11,6 +11,13 @@ VAULT_PATH = Path(
     os.environ.get("NASH_VAULT_PATH", "/home/kodansha/.hermes/profiles/nash/vault")
 ).resolve()
 
+# Perfil e Infraestrutura RAG de Nash (FTS5 + Chroma)
+NASH_PROFILE_DIR = Path(
+    os.environ.get("NASH_PROFILE_DIR", "/home/kodansha/.hermes/profiles/nash")
+).resolve()
+STATE_DB_PATH = NASH_PROFILE_DIR / "state.db"
+CHROMA_PATH = NASH_PROFILE_DIR / "chroma"
+
 # Suporta a pasta canônica Inbox/ (definida no AGENTS.md do cofre) com fallback para 00 - Inbox
 INBOX_PATH = (VAULT_PATH / "Inbox") if (VAULT_PATH / "Inbox").exists() else (VAULT_PATH / "00 - Inbox")
 ASSETS_PATH = VAULT_PATH / "assets"

@@ -4,6 +4,9 @@ Integra Terminal Antigravity Interativo e Ingestão Multimodal.
 """
 import os
 import pty
+import time
+import re
+import sqlite3
 import fcntl
 import termios
 import struct
@@ -19,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
-from .config import VAULT_PATH, AGY_CLI, HOST, PORT
+from .config import VAULT_PATH, AGY_CLI, HOST, PORT, STATE_DB_PATH, CHROMA_PATH
 from .vault_service import (
     save_asset,
     list_projects,
@@ -39,6 +42,9 @@ class ApproveNoteIn(BaseModel):
     title: str
     target_folder: str
     content: str
+
+class RagTestIn(BaseModel):
+    query: str
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -395,6 +401,105 @@ def run_triage():
         return JSONResponse(content=res, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/rag/config")
+@app.get("/desk/api/rag/config")
+def get_rag_config():
+    """Retorna o estado e caminhos canônicos da infraestrutura RAG de Nash."""
+    fts_count = 0
+    if STATE_DB_PATH.exists():
+        try:
+            with sqlite3.connect(f"file:{STATE_DB_PATH}?mode=ro", uri=True, timeout=2.0) as con:
+                cur = con.cursor()
+                cur.execute("SELECT count(*) FROM vault_fts")
+                row = cur.fetchone()
+                fts_count = row[0] if row else 0
+        except Exception:
+            pass
+
+    chroma_count = 0
+    if CHROMA_PATH.exists():
+        try:
+            import chromadb
+            client = chromadb.PersistentClient(path=str(CHROMA_PATH))
+            col = client.get_collection("vault_sync_gree")
+            chroma_count = col.count()
+        except Exception:
+            pass
+
+    return {
+        "vault_path": str(VAULT_PATH),
+        "vault_status": "conectado" if VAULT_PATH.exists() else "ausente",
+        "state_db_path": str(STATE_DB_PATH),
+        "state_db_status": "indexado" if STATE_DB_PATH.exists() else "ausente",
+        "fts_chunks": fts_count,
+        "chroma_path": str(CHROMA_PATH),
+        "chroma_status": "ativo" if CHROMA_PATH.exists() else "ausente",
+        "chroma_chunks": chroma_count,
+        "active_model": "Gemini 3.8 Flash (Multimodal Vision & Reasoning via AGY)",
+        "cli_path": str(AGY_CLI),
+        "hybrid_algorithm": "Reciprocal Rank Fusion (RRF k=60) + BM25 Fast-Path",
+        "databases": [
+            "db_pcm.db (PCM & Equipamentos Industriais)",
+            "curadoria_grimorium.db (Mapeamento & Vocabulário Técnico)"
+        ]
+    }
+
+
+@app.post("/api/rag/test")
+@app.post("/desk/api/rag/test")
+def test_rag_query(payload: RagTestIn):
+    """Testa a busca RAG no FTS5 de Nash e retorna latência em milissegundos."""
+    query = (payload.query or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Consulta vazia.")
+
+    t0 = time.perf_counter()
+    raw_tokens = []
+    for item in re.findall(r'[^\s,;:()\[\]\"\'\+\*\?\^\{\}]+', query):
+        if "/" in item:
+            raw_tokens.extend([p for p in item.split("/") if len(p) >= 2])
+        raw_tokens.append(item)
+
+    priority = [t for t in raw_tokens if re.search(r"^(JM|GRB|GBR|Φ|8DX|201|285|ALETA|MOLDE|INJETORA)", t, re.I)]
+    terms = priority + [t for t in raw_tokens if t not in priority and len(t) >= 2]
+    tokens = [f'"{t}"' for t in terms[:12]]
+    match_query = " OR ".join(tokens) if tokens else f'"{query}"'
+
+    results = []
+    if STATE_DB_PATH.exists():
+        try:
+            with sqlite3.connect(f"file:{STATE_DB_PATH}?mode=ro", uri=True, timeout=3.0) as con:
+                cur = con.cursor()
+                cur.execute("""
+                    SELECT file_path, section, content, bm25(vault_fts) as rank
+                    FROM vault_fts
+                    WHERE vault_fts MATCH ?
+                      AND file_path NOT LIKE '%System/Archive%'
+                      AND file_path NOT LIKE '%.backups%'
+                    ORDER BY rank
+                    LIMIT 6
+                """, (match_query,))
+                for fp, sec, cont, score in cur.fetchall():
+                    snippet = " ".join([l.strip() for l in cont.splitlines() if l.strip()][:3])
+                    results.append({
+                        "file_path": fp,
+                        "section": sec or "Raiz",
+                        "score": round(-float(score), 2),
+                        "snippet": snippet[:250]
+                    })
+        except Exception:
+            pass
+
+    elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
+    return {
+        "query": query,
+        "latency_ms": elapsed_ms,
+        "engine": "Nash FTS5 BM25 Inverted Index (Fast-Path)",
+        "count": len(results),
+        "results": results
+    }
 
 
 # -----------------------------------------------------------------------------

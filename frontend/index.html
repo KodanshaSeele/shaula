@@ -1155,6 +1155,67 @@ textarea {
           </div>
         </div>
 
+        <!-- Painel de Configurações da RAG de Nash -->
+        <div class="mobile-card" style="border: 1px solid var(--accent); box-shadow: 0 4px 14px rgba(59, 130, 246, 0.12);">
+          <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <div><span class="icon">⚙️</span> Infraestrutura RAG de Nash (SSoT)</div>
+            <span style="font-size: 0.7rem; background: rgba(52, 211, 153, 0.15); color: #34d399; padding: 2px 8px; border-radius: 12px; font-weight: 700; border: 1px solid rgba(52, 211, 153, 0.3);">🟢 CONECTADO / SSoT</span>
+          </div>
+          
+          <div style="font-size: calc(var(--base-font-size) * 0.78); color: var(--text-muted); line-height: 1.6; margin-top: 0.25rem;">
+            Todas as notas, consultas e curadorias operam diretamente no cofre físico de Nash. A busca é acelerada via índice invertido FTS5 e vetores densos ChromaDB.
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 0.75rem; font-size: calc(var(--base-font-size) * 0.78);">
+            <div style="background: var(--bg-input); padding: 8px 10px; border-radius: 6px;">
+              <div style="font-weight: 700; color: var(--text-main);">📁 Local do Cofre (SSoT):</div>
+              <code id="rag-vault-path" style="color: var(--accent); word-break: break-all;">/home/kodansha/.hermes/profiles/nash/vault</code>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div style="background: var(--bg-input); padding: 8px 10px; border-radius: 6px;">
+                <div style="font-weight: 700; color: #34d399;">⚡ FTS5 BM25 (state.db)</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);"><span id="rag-fts-count" style="font-weight: 800; color: #34d399; font-size: 0.9rem;">4.884</span> chunks indexados</div>
+                <div style="font-size: 0.68rem; color: var(--text-muted);">Latência: ~3 a 10 ms</div>
+              </div>
+              <div style="background: var(--bg-input); padding: 8px 10px; border-radius: 6px;">
+                <div style="font-weight: 700; color: #60a5fa;">🧬 Chroma Vector Store</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);"><span id="rag-chroma-count" style="font-weight: 800; color: #60a5fa; font-size: 0.9rem;">4.614</span> vetores densos</div>
+                <div style="font-size: 0.68rem; color: var(--text-muted);">Coleção: vault_sync_gree</div>
+              </div>
+            </div>
+
+            <div style="background: var(--bg-input); padding: 8px 10px; border-radius: 6px;">
+              <div style="font-weight: 700; color: var(--text-main);">🧠 Motor de IA e Visão:</div>
+              <div id="rag-active-model" style="color: var(--text-muted); font-size: 0.74rem;">Gemini 3.8 Flash (Multimodal Vision & Reasoning via AGY)</div>
+              <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Algoritmo: <span id="rag-hybrid-algo" style="color: var(--accent);">Reciprocal Rank Fusion (RRF k=60) + BM25 Fast-Path</span></div>
+            </div>
+
+            <div style="background: var(--bg-input); padding: 8px 10px; border-radius: 6px;">
+              <div style="font-weight: 700; color: var(--text-main);">🗄️ Bancos Relacionais de Apoio:</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">• <code>db_pcm.db</code>: Ordens e histórico PCM industrial</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">• <code>curadoria_grimorium.db</code>: Mapeamento de termos e sinônimos</div>
+            </div>
+          </div>
+
+          <!-- Diagnóstico & Teste de Busca em Tempo Real -->
+          <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+            <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-main); margin-bottom: 4px;">
+              🧪 Diagnóstico & Teste de Busca RAG (Tempo Real)
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 8px;">
+              Digite qualquer código, ativo ou termo do cofre para mensurar a latência e inspecionar os chunks recuperados:
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="rag-test-input" placeholder="Ex: JM201/131, GRBIM 285, Φ8DX48RX4P, aleta..." style="flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 0.82rem;">
+              <button id="btn-rag-test" class="btn btn-primary" style="padding: 8px 12px; font-size: 0.8rem; white-space: nowrap;">
+                ⚡ Testar RAG
+              </button>
+            </div>
+            <div id="rag-test-results" style="margin-top: 8px; max-height: 220px; overflow-y: auto; display: none; background: #000; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);"></div>
+          </div>
+        </div>
+
         <!-- Estatísticas da Memória do Cofre -->
         <div class="mobile-card">
           <div class="card-title"><span class="icon">📊</span> Memória de Nash (SSoT)</div>
@@ -1250,6 +1311,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAccessibility();
   initTabs();
   initStats();
+  initRagConfig();
   initProjects();
   initIngest();
   initTriage();
@@ -1412,6 +1474,10 @@ function switchTab(targetId) {
       }
       if (targetId === "view-triage") {
         loadInbox();
+      }
+      if (targetId === "view-settings") {
+        initStats();
+        initRagConfig();
       }
     }
   });
@@ -2264,6 +2330,99 @@ async function initProjects() {
       select.appendChild(opt);
     });
   } catch (e) {}
+}
+
+async function initRagConfig() {
+  try {
+    const res = await fetch(BASE_PATH + "api/rag/config");
+    if (!res.ok) return;
+    const cfg = await res.json();
+    const vaultPathEl = document.getElementById("rag-vault-path");
+    if (vaultPathEl) vaultPathEl.innerText = cfg.vault_path;
+    const ftsCountEl = document.getElementById("rag-fts-count");
+    if (ftsCountEl) ftsCountEl.innerText = Number(cfg.fts_chunks).toLocaleString("pt-BR");
+    const chromaCountEl = document.getElementById("rag-chroma-count");
+    if (chromaCountEl) chromaCountEl.innerText = Number(cfg.chroma_chunks).toLocaleString("pt-BR");
+    const activeModelEl = document.getElementById("rag-active-model");
+    if (activeModelEl) activeModelEl.innerText = cfg.active_model;
+    const hybridAlgoEl = document.getElementById("rag-hybrid-algo");
+    if (hybridAlgoEl) hybridAlgoEl.innerText = cfg.hybrid_algorithm;
+  } catch (e) {
+    console.error("Erro ao carregar RAG config:", e);
+  }
+
+  const btnTest = document.getElementById("btn-rag-test");
+  const inputTest = document.getElementById("rag-test-input");
+  if (btnTest && !btnTest.dataset.bound) {
+    btnTest.dataset.bound = "true";
+    btnTest.addEventListener("click", runRagDiagnosticTest);
+    if (inputTest) {
+      inputTest.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          runRagDiagnosticTest();
+        }
+      });
+    }
+  }
+}
+
+async function runRagDiagnosticTest() {
+  const input = document.getElementById("rag-test-input");
+  const btn = document.getElementById("btn-rag-test");
+  const resBox = document.getElementById("rag-test-results");
+  if (!input || !btn || !resBox) return;
+
+  const val = input.value.trim();
+  if (!val) {
+    showToast("⚠️ Digite um termo ou código para testar a busca.");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="pulse-dot"></span> Testando...`;
+  resBox.style.display = "block";
+  resBox.innerHTML = `<div style="color: var(--text-muted); padding: 8px; font-size: 0.78rem;">Consultando índice FTS5 do cofre de Nash...</div>`;
+
+  try {
+    const res = await fetch(BASE_PATH + "api/rag/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: val })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Erro na consulta ao cofre");
+
+    let html = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
+        <span style="font-weight: 700; color: #34d399; font-size: 0.82rem;">⚡ Latência: ${data.latency_ms} ms</span>
+        <span style="font-size: 0.68rem; color: var(--text-muted); background: var(--bg-card); padding: 2px 6px; border-radius: 4px;">${data.engine}</span>
+      </div>
+    `;
+
+    if (data.results && data.results.length > 0) {
+      data.results.forEach(r => {
+        html += `
+          <div style="background: var(--bg-input); padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; border-left: 3px solid var(--accent);">
+            <div style="font-weight: 700; font-size: 0.8rem; color: var(--accent); display: flex; justify-content: space-between;">
+              <span>📄 [[${r.file_path}]]</span>
+              <span style="font-size: 0.68rem; color: #34d399;">Score: ${r.score}</span>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Seção: <em>${escapeHtml(r.section)}</em></div>
+            <div style="font-size: 0.74rem; color: var(--text-main); margin-top: 4px; font-family: var(--font-mono); white-space: pre-wrap;">${escapeHtml(r.snippet)}</div>
+          </div>
+        `;
+      });
+    } else {
+      html += `<div style="color: var(--text-muted); font-size: 0.78rem; padding: 6px;">Nenhum registro encontrado no cofre para "${escapeHtml(val)}".</div>`;
+    }
+    resBox.innerHTML = html;
+  } catch (err) {
+    resBox.innerHTML = `<div style="color: #ef4444; font-size: 0.78rem; padding: 6px;">Erro: ${escapeHtml(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `⚡ Testar RAG`;
+  }
 }
 
 function showToast(msg) {

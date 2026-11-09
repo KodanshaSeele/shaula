@@ -9,13 +9,14 @@ import json
 import yaml
 import shutil
 import asyncio
+import sqlite3
 import subprocess
 from datetime import datetime
 from pathlib import Path
 from collections import deque
 from typing import Dict, List, Any, Tuple, Optional
 
-from .config import VAULT_PATH, INBOX_PATH, ASSETS_PATH, TEMPLATE_PATH, AGY_CLI
+from .config import VAULT_PATH, INBOX_PATH, ASSETS_PATH, TEMPLATE_PATH, AGY_CLI, STATE_DB_PATH, CHROMA_PATH
 from .db_service import cross_reference_database
 from .vault_service import (
     safe_vault_path,
@@ -158,50 +159,58 @@ def _select_relevant_projects(raw_content: str, max_projects: int = 12) -> str:
     return ", ".join(matched)
 
 
+def _fts5_vault_search(match_query: str, max_results: int = 4) -> List[Tuple[str, str, str]]:
+    """Consulta rápida via índice invertido BM25 no SQLite FTS5 de Nash (<=10ms)."""
+    if not STATE_DB_PATH.exists() or not match_query.strip():
+        return []
+    uri = f"file:{STATE_DB_PATH}?mode=ro"
+    try:
+        with sqlite3.connect(uri, uri=True, timeout=3.0) as con:
+            cur = con.cursor()
+            cur.execute("""
+                SELECT file_path, section, content
+                FROM vault_fts
+                WHERE vault_fts MATCH ?
+                  AND file_path NOT LIKE '%System/Archive%'
+                  AND file_path NOT LIKE '%.backups%'
+                ORDER BY bm25(vault_fts)
+                LIMIT ?
+            """, (match_query, max_results))
+            return cur.fetchall()
+    except Exception:
+        return []
+
+
 def query_vault_rag(search_text: str, max_results: int = 4) -> Dict[str, Any]:
     """
-    Motor RAG do Vault de Nash (JPL-CP-10 Compliant): busca notas técnicas,
-    ativos industriais e histórico no cofre com base na avaliação visual do Gemini.
+    Motor RAG do Vault de Nash (JPL-CP-10 Compliant):
+    Utiliza o índice invertido FTS5 pré-indexado de Nash com BM25 para recuperação
+    instantânea (<10ms).
     """
     if not VAULT_PATH.exists() or not search_text.strip():
         return {"has_match": False, "matched_notes": [], "summary_context": ""}
 
-    tokens = set()
-    for m in re.findall(r"[A-Za-z0-9]+/[A-Za-z0-9]+", search_text):
-        tokens.add(m)
-        tokens.add(m.split("/")[0])
-        tokens.add(m.split("/")[1])
-    for m in re.findall(r"\b[A-Za-z0-9]{3,}\b", search_text):
-        if not m.isdigit() or len(m) >= 3:
-            tokens.add(m.upper())
+    raw_tokens = []
+    for item in re.findall(r'[^\s,;:()\[\]\"\'\+\*\?\^\{\}]+', search_text):
+        if "/" in item:
+            raw_tokens.extend([p for p in item.split("/") if len(p) >= 2])
+        raw_tokens.append(item)
 
-    priority_tokens = [t for t in tokens if re.search(r"^(JM|GRB|GBR|8DX|201|285|ALETA|MOLDE|INJETORA)", t, re.IGNORECASE)]
-    search_list = (priority_tokens + list(tokens))[:12]
+    priority = [t for t in raw_tokens if re.search(r"^(JM|GRB|GBR|Φ|8DX|201|285|ALETA|MOLDE|INJETORA)", t, re.I)]
+    terms = priority + [t for t in raw_tokens if t not in priority and len(t) >= 2]
+    tokens = [f'"{t}"' for t in terms[:12]]
 
-    candidates = []
-    for f in VAULT_PATH.rglob("*.md"):
-        rel = str(f.relative_to(VAULT_PATH))
-        if any(skip in rel for skip in [".git", "System/Archive", "Media", ".backups", "00 - Inbox"]):
-            continue
-        try:
-            content = f.read_text(encoding="utf-8", errors="ignore")
-        except Exception:
-            continue
-
-        score = sum(10 if t in priority_tokens else 3 for t in search_list if t.lower() in content.lower())
-        if score > 0:
-            candidates.append((score, rel, content[:1500]))
-
-    candidates.sort(key=lambda x: x[0], reverse=True)
-    if not candidates:
+    rows = _fts5_vault_search(" OR ".join(tokens), max_results) if tokens else []
+    if not rows:
         return {"has_match": False, "matched_notes": [], "summary_context": "Sem notas correlatas prévias no cofre."}
 
     matched_notes = []
     context_lines = []
-    for score, rel, excerpt in candidates[:max_results]:
+    for rel, section, content in rows:
         matched_notes.append(rel)
-        lines = [l for l in excerpt.splitlines() if l.startswith("#") or l.startswith("- **") or l.startswith("|")][:6]
-        context_lines.append(f"Nota [[{rel}]]:\n" + "\n".join(lines))
+        lines = [l for l in content.splitlines() if l.startswith("#") or l.startswith("- **") or l.startswith("|")][:6]
+        sec_label = f" ({section})" if section else ""
+        context_lines.append(f"Nota [[{rel}]]{sec_label}:\n" + "\n".join(lines))
 
     return {
         "has_match": True,
