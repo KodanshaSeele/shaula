@@ -22,11 +22,15 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
-from .config import VAULT_PATH, AGY_CLI, HOST, PORT, STATE_DB_PATH, CHROMA_PATH
+from .config import VAULT_PATH, INBOX_PATH, AGY_CLI, HOST, PORT, STATE_DB_PATH, CHROMA_PATH
 from .vault_service import (
     save_asset,
     list_projects,
     list_inbox_pending,
+    get_inbox_note,
+    update_inbox_note,
+    delete_inbox_note,
+    safe_inbox_path,
     get_vault_stats
 )
 from .curator import (
@@ -35,6 +39,7 @@ from .curator import (
     analyze_and_cross_reference,
     approve_and_save_note,
     triage_inbox_batch,
+    triage_single_file,
     continuous_curator
 )
 
@@ -42,6 +47,10 @@ class ApproveNoteIn(BaseModel):
     title: str
     target_folder: str
     content: str
+
+class UpdateInboxNoteIn(BaseModel):
+    content: str
+    new_filename: Optional[str] = None
 
 class RagTestIn(BaseModel):
     query: str
@@ -220,6 +229,72 @@ def get_projects():
 @app.get("/desk/api/inbox")
 def get_inbox():
     return list_inbox_pending()
+
+
+@app.get("/api/inbox/{filename}")
+@app.get("/desk/api/inbox/{filename}")
+def get_inbox_single_note_endpoint(filename: str):
+    """Obtém detalhes e conteúdo completo de uma nota na Inbox para edição ou leitura."""
+    try:
+        return get_inbox_note(filename)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/inbox/{filename}")
+@app.put("/desk/api/inbox/{filename}")
+def update_inbox_note_endpoint(filename: str, payload: UpdateInboxNoteIn):
+    """Atualiza o conteúdo (e opcionalmente renomeia) de uma nota pendente na Inbox."""
+    try:
+        return update_inbox_note(
+            filename=filename,
+            content=payload.content,
+            new_filename=payload.new_filename
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except (ValueError, AssertionError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/inbox/{filename}")
+@app.delete("/desk/api/inbox/{filename}")
+def delete_inbox_note_endpoint(filename: str):
+    """Remove uma nota da Inbox antes da ingestão."""
+    try:
+        success = delete_inbox_note(filename)
+        return {"success": success, "filename": filename, "message": f"Nota '{filename}' apagada da Inbox."}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (ValueError, AssertionError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/inbox/{filename}/triage")
+@app.post("/desk/api/inbox/{filename}/triage")
+def triage_single_inbox_endpoint(filename: str):
+    """Classifica, organiza e ingere uma nota individual do Inbox no Vault."""
+    try:
+        target = safe_inbox_path(filename)
+        res = triage_single_file(target)
+        continuous_curator.recent_logs.append(
+            f"[{datetime.now().strftime('%H:%M:%S')}] ✓ [Manual] [{filename}] ➔ {res['target_folder']}/ ({res['reason']})"
+        )
+        return res
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/ingest/analyze")

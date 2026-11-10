@@ -673,6 +673,53 @@ def classify_note_smart(content: str, filename: str) -> Tuple[str, str, List[str
 # -----------------------------------------------------------------------------
 # WORKER DE CURADORIA CONTÍNUA AUTÔNOMA
 # -----------------------------------------------------------------------------
+def triage_single_file(file_path: Path) -> Dict[str, Any]:
+    """
+    Classifica, enriquece metadados e move uma nota individual da Inbox para sua pasta canônica no Vault.
+    Executa verificação pós-escrita e remove com segurança o arquivo do Inbox.
+    """
+    if not file_path.exists() or not file_path.is_file():
+        raise FileNotFoundError(f"Nota não encontrada: {file_path.name}")
+
+    content = file_path.read_text(encoding="utf-8", errors="replace")
+    meta, body = parse_frontmatter(content)
+    current_tags = meta.get("tags") or []
+
+    target_folder, reason, extra_tags = classify_note_smart(content, file_path.name)
+
+    dest_dir = VAULT_PATH / target_folder
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_file = dest_dir / file_path.name
+
+    if dest_file.exists() and dest_file.resolve() != file_path.resolve():
+        dest_file = dest_dir / f"{file_path.stem}_{datetime.now().strftime('%H%M%S')}.md"
+
+    meta["status"] = "triaged"
+    meta["updated"] = datetime.now().strftime("%Y-%m-%d")
+
+    existing_tags = set(current_tags if isinstance(current_tags, list) else [str(current_tags)])
+    existing_tags.update(extra_tags)
+    meta["tags"] = sorted(list(existing_tags))
+
+    new_frontmatter = yaml.dump(meta, sort_keys=False, allow_unicode=True).strip()
+    updated_content = f"---\n{new_frontmatter}\n---\n\n{body.strip()}\n"
+
+    dest_file.write_text(updated_content, encoding="utf-8")
+    assert dest_file.exists() and dest_file.stat().st_size > 0, "Falha ao gravar nota triada no destino"
+
+    file_path.unlink()
+    assert not file_path.exists(), f"Falha ao remover arquivo original {file_path.name} do Inbox"
+
+    return {
+        "success": True,
+        "filename": dest_file.name,
+        "original_filename": file_path.name,
+        "target_folder": target_folder,
+        "dest_path": str(dest_file.relative_to(VAULT_PATH)),
+        "reason": reason
+    }
+
+
 class ContinuousCurator:
     def __init__(self):
         self.is_running: bool = False
@@ -768,35 +815,9 @@ class ContinuousCurator:
             self.recent_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] 🏁 Sessão finalizada. Total processadas: {self.processed_count}.")
 
     def _process_single_file(self, file_path: Path):
-        content = file_path.read_text(encoding="utf-8", errors="replace")
-        meta, body = parse_frontmatter(content)
-        current_tags = meta.get("tags") or []
-        
-        target_folder, reason, extra_tags = classify_note_smart(content, file_path.name)
-        
-        dest_dir = VAULT_PATH / target_folder
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest_file = dest_dir / file_path.name
-
-        if dest_file.exists() and dest_file.resolve() != file_path.resolve():
-            dest_file = dest_dir / f"{file_path.stem}_{datetime.now().strftime('%H%M%S')}.md"
-
-        meta["status"] = "triaged"
-        meta["updated"] = datetime.now().strftime("%Y-%m-%d")
-        
-        existing_tags = set(current_tags if isinstance(current_tags, list) else [str(current_tags)])
-        existing_tags.update(extra_tags)
-        meta["tags"] = sorted(list(existing_tags))
-
-        new_frontmatter = yaml.dump(meta, sort_keys=False, allow_unicode=True).strip()
-        updated_content = f"---\n{new_frontmatter}\n---\n\n{body.strip()}\n"
-
-        dest_file.write_text(updated_content, encoding="utf-8")
-        assert dest_file.exists() and dest_file.stat().st_size > 0
-
-        file_path.unlink()
+        res = triage_single_file(file_path)
         time_str = datetime.now().strftime("%H:%M:%S")
-        self.recent_logs.append(f"[{time_str}] ✓ [{file_path.name}] ➔ {target_folder}/ ({reason})")
+        self.recent_logs.append(f"[{time_str}] ✓ [{file_path.name}] ➔ {res['target_folder']}/ ({res['reason']})")
 
 
 continuous_curator = ContinuousCurator()
@@ -813,22 +834,8 @@ def triage_inbox_batch(batch_size: int = 10) -> Dict[str, Any]:
 
     for file_path in batch:
         try:
-            content = file_path.read_text(encoding="utf-8", errors="replace")
-            meta, body = parse_frontmatter(content)
-            target_folder, reason, extra_tags = classify_note_smart(content, file_path.name)
-            
-            dest_dir = VAULT_PATH / target_folder
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            dest_file = dest_dir / file_path.name
-            if dest_file.exists() and dest_file.resolve() != file_path.resolve():
-                dest_file = dest_dir / f"{file_path.stem}_{datetime.now().strftime('%H%M%S')}.md"
-
-            meta["status"] = "triaged"
-            meta["updated"] = datetime.now().strftime("%Y-%m-%d")
-            dest_file.write_text(f"---\n{yaml.dump(meta, sort_keys=False, allow_unicode=True).strip()}\n---\n\n{body.strip()}\n", encoding="utf-8")
-            assert dest_file.exists() and dest_file.stat().st_size > 0
-            file_path.unlink()
-            logs.append(f"✓ [{file_path.name}] → {target_folder}/ ({reason})")
+            res = triage_single_file(file_path)
+            logs.append(f"✓ [{file_path.name}] → {res['target_folder']}/ ({res['reason']})")
             processed_count += 1
         except Exception as e:
             logs.append(f"✗ [{file_path.name}]: {str(e)}")

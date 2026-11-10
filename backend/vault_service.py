@@ -197,6 +197,100 @@ def list_inbox_pending(limit: int = 50) -> List[Dict[str, Any]]:
     return results
 
 
+def safe_inbox_path(filename: str) -> Path:
+    """Valida que o arquivo pertence estritamente à pasta INBOX_PATH."""
+    clean_name = os.path.basename(filename.strip())
+    if not clean_name.endswith(".md"):
+        clean_name += ".md"
+    target = (INBOX_PATH / clean_name).resolve()
+    if not str(target).startswith(str(INBOX_PATH.resolve())):
+        raise ValueError(f"Acesso negado: tentativa de escape da Inbox ({filename})")
+    return target
+
+
+def get_inbox_note(filename: str) -> Dict[str, Any]:
+    """Obtém detalhes completos de uma nota específica na Inbox para edição ou inspeção."""
+    target = safe_inbox_path(filename)
+    if not target.exists() or not target.is_file():
+        raise FileNotFoundError(f"Nota não encontrada no Inbox: {filename}")
+
+    content = target.read_text(encoding="utf-8", errors="replace")
+    meta, body = parse_frontmatter(content)
+    title = meta.get("title") or target.stem
+    tags = meta.get("tags") or []
+    status = meta.get("status", "captured")
+    created = meta.get("created", "")
+    updated = meta.get("updated", "")
+    images = re.findall(r"!\[\[(.*?)\]\]", content)
+
+    return {
+        "filename": target.name,
+        "title": title,
+        "status": status,
+        "tags": tags if isinstance(tags, list) else [str(tags)],
+        "created": str(created),
+        "updated": str(updated),
+        "frontmatter": meta,
+        "content": content,
+        "body": body,
+        "images": images,
+        "size_bytes": target.stat().st_size,
+        "mtime": datetime.fromtimestamp(target.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+
+def update_inbox_note(filename: str, content: str, new_filename: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Atualiza o conteúdo de uma nota na Inbox com Read-Back Check mandatório (PRVC/JPL-CP-10).
+    Permite também renomear o arquivo se new_filename for informado.
+    """
+    assert len(content.strip()) > 0, "O conteúdo da nota não pode ser vazio."
+    target = safe_inbox_path(filename)
+    if not target.exists() or not target.is_file():
+        raise FileNotFoundError(f"Nota de origem não existe: {filename}")
+
+    dest = target
+    if new_filename and new_filename.strip():
+        new_clean = os.path.basename(new_filename.strip())
+        if not new_clean.endswith(".md"):
+            new_clean += ".md"
+        dest_candidate = safe_inbox_path(new_clean)
+        if dest_candidate.resolve() != target.resolve() and dest_candidate.exists():
+            raise FileExistsError(f"Já existe uma nota com o nome '{new_clean}' no Inbox.")
+        dest = dest_candidate
+
+    dest.write_text(content, encoding="utf-8")
+    read_back = dest.read_text(encoding="utf-8")
+    assert read_back == content, f"Read-back check falhou ao atualizar {dest.name}"
+
+    if dest.resolve() != target.resolve() and target.exists():
+        target.unlink()
+        assert not target.exists(), f"Falha ao remover arquivo legado pós-renomeação: {target.name}"
+
+    return get_inbox_note(dest.name)
+
+
+def delete_inbox_note(filename: str) -> bool:
+    """
+    Remove com segurança uma nota do Inbox antes da ingestão no cofre.
+    Preserva cópia de segurança em .backups/trash e executa verificação pós-exclusão.
+    """
+    target = safe_inbox_path(filename)
+    if not target.exists() or not target.is_file():
+        raise FileNotFoundError(f"Nota não encontrada no Inbox: {filename}")
+
+    # Preserva backup de segurança em .backups/trash
+    trash_dir = VAULT_PATH / ".backups" / "trash"
+    trash_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = trash_dir / f"{target.stem}_{timestamp}{target.suffix}"
+    backup_path.write_text(target.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
+
+    target.unlink()
+    assert not target.exists(), f"Read-back check falhou: arquivo {filename} ainda existe após exclusão"
+    return True
+
+
 def get_vault_stats() -> Dict[str, Any]:
     """Coleta métricas rápidas de saúde do cofre."""
     total_notes = sum(1 for p in VAULT_PATH.rglob("*.md") if not p.name.startswith(".") and ".backups" not in p.parts)
